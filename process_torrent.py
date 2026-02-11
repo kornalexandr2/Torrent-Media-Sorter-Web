@@ -1,0 +1,466 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Transmission Media Sorter
+-------------------------
+Автоматический сортировщик медиафайлов для Transmission.
+Определяет тип контента (Фильм/Сериал) по маскам или API (Kinopoisk, TMDB, TVDB),
+переименовывает и раскладывает по папкам.
+
+Repository: https://github.com/ваше-имя/transmission-media-sorter
+License: MIT
+"""
+
+import os
+import shutil
+import logging
+import re
+import configparser
+import sys
+import json
+import urllib.request
+import urllib.parse
+import subprocess
+from pathlib import Path
+
+# --- НАСТРОЙКИ ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_FILE = os.path.join(BASE_DIR, 'config.ini')
+MOVIES_MASKS_FILE = os.path.join(BASE_DIR, 'masks_movies.txt')
+SERIES_MASKS_FILE = os.path.join(BASE_DIR, 'masks_series.txt')
+
+config = configparser.ConfigParser()
+if not os.path.exists(CONFIG_FILE):
+    sys.exit(1)
+
+config.read(CONFIG_FILE)
+
+MOVIES_FOLDER = config['PATHS']['movies_folder']
+SERIES_FOLDER = config['PATHS']['series_folder']
+LOG_FILE = config['LOGGING']['log_file']
+VIDEO_EXTS = tuple(config.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+
+# API CONFIG
+USE_KP = config.getboolean('API', 'use_kp', fallback=False)
+KP_API_KEY = config.get('API', 'kp_api_key', fallback=None)
+
+USE_TMDB = config.getboolean('API', 'use_tmdb', fallback=False)
+TMDB_API_KEY = config.get('API', 'tmdb_api_key', fallback=None)
+
+USE_TVDB = config.getboolean('API', 'use_tvdb', fallback=False)
+TVDB_API_KEY = config.get('API', 'tvdb_api_key', fallback=None)
+
+# TELEGRAM CONFIG
+USE_TELEGRAM = config.getboolean('TELEGRAM', 'use_telegram', fallback=False)
+TG_TOKEN = config.get('TELEGRAM', 'bot_token', fallback=None)
+TG_CHAT_ID = config.get('TELEGRAM', 'chat_id', fallback=None)
+
+# TRANSMISSION CONFIG
+TR_HOST = config.get('TRANSMISSION', 'host', fallback='localhost')
+TR_PORT = config.get('TRANSMISSION', 'port', fallback='9091')
+TR_USER = config.get('TRANSMISSION', 'username', fallback='')
+TR_PASS = config.get('TRANSMISSION', 'password', fallback='')
+
+# --- ЛОГИРОВАНИЕ ---
+logger = logging.getLogger('MediaSorter')
+log_level_str = config.get('LOGGING', 'level', fallback='INFO').upper()
+logger.setLevel(getattr(logging, log_level_str, logging.INFO))
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+try:
+    fh = logging.FileHandler(LOG_FILE)
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+except Exception:
+    pass
+sh = logging.StreamHandler()
+sh.setFormatter(formatter)
+logger.addHandler(sh)
+
+# --- ФУНКЦИИ ---
+
+def send_telegram(text):
+    if not USE_TELEGRAM or not TG_TOKEN or not TG_CHAT_ID or "YOUR_" in TG_TOKEN:
+        return
+    try:
+        logger.info("--> [TELEGRAM] Sending notification...")
+        url = f"https://api.telegram.org/bot{TG_TOKEN}/sendMessage"
+        data = urllib.parse.urlencode({'chat_id': TG_CHAT_ID, 'text': text, 'parse_mode': 'HTML'}).encode('utf-8')
+        urllib.request.urlopen(url, data=data, timeout=5)
+        logger.info("--> [TELEGRAM] Sent successfully.")
+    except Exception as e:
+        logger.error(f"--> [TELEGRAM] Error: {e}")
+
+def remove_torrent_from_client(torrent_id):
+    if not torrent_id: return
+    cmd = ['transmission-remote', f"{TR_HOST}:{TR_PORT}", '--torrent', str(torrent_id), '--remove']
+    if TR_USER and TR_PASS and "YOUR_" not in TR_USER:
+        cmd.insert(1, '--auth')
+        cmd.insert(2, f"{TR_USER}:{TR_PASS}")
+    try:
+        logger.info(f"--> [TORRENT] Removing ID {torrent_id} from client...")
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            logger.info("--> [TORRENT] Removed successfully.")
+        else:
+            logger.error(f"--> [TORRENT] Remove failed: {result.stderr}")
+    except Exception as e:
+        logger.error(f"--> [TORRENT] Error executing command: {e}")
+
+def load_masks(filepath):
+    masks = []
+    if os.path.exists(filepath):
+        with open(filepath, 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    try: masks.append(re.compile(line.strip()))
+                    except: pass
+    return masks
+
+def check_match(name, patterns):
+    for p in patterns:
+        if p.search(name): return True
+    return False
+
+def sanitize(name):
+    name = re.sub(r'[:/\\|]', ' - ', name)
+    return re.sub(r'[?"*<>]', '', name).strip()
+
+def get_unique_path(path):
+    p = Path(path)
+    if not p.exists(): return p
+    counter = 1
+    while True:
+        new_path = p.parent / f"{p.stem}_copy{counter}{p.suffix}"
+        if not new_path.exists(): return new_path
+        counter += 1
+
+def clean_search(name):
+    n = Path(name).stem.replace('.', ' ').replace('_', ' ')
+    n = re.sub(r'(19|20)\d{2}.*', '', n)
+    n = re.sub(r'(?i)(s\d+|season|сезон|720p|1080p|bluray|web-dl|rip).*', '', n)
+    n = re.sub(r'(?i)(lostfilm|newstudio|baibako|alexfilm|tv|amedia|kubik|kuraj|hdrezka).*', '', n)
+    n = re.sub(r'\s\d+$', '', n)
+    return n.strip(' -()[]')
+
+# --- API FUNCTIONS ---
+
+def check_kp(query):
+    if not KP_API_KEY or "YOUR_" in KP_API_KEY: return None
+    logger.info(f"--> [API:KP] Searching Kinopoisk for: '{query}'")
+    try:
+        q_enc = urllib.parse.quote(query)
+        url = f"https://kinopoiskapiunofficial.tech/api/v2.1/films/search-by-keyword?keyword={q_enc}"
+        req = urllib.request.Request(url)
+        req.add_header('X-API-KEY', KP_API_KEY) 
+        req.add_header('Content-Type', 'application/json')
+        with urllib.request.urlopen(req, timeout=5) as r:
+            data = json.loads(r.read().decode())
+            if not data.get('films'): return None
+            
+            item = data['films'][0]
+            k_type = item.get('type')
+            title = item.get('nameRu') or item.get('nameEn') or item.get('nameOriginal') or query
+            year = str(item.get('year') or '')
+            t = 'movie' if k_type == 'FILM' else ('tv' if k_type in ['TV_SERIES', 'MINI_SERIES', 'TV_SHOW'] else None)
+            
+            if t: return {'type': t, 'title': str(title), 'year': year, 'source': 'KP'}
+    except Exception as e:
+        logger.error(f"--> [API:KP] Error: {e}")
+    return None
+
+def check_tmdb(query):
+    if not TMDB_API_KEY or "YOUR_" in TMDB_API_KEY: return None
+    logger.info(f"--> [API:TMDB] Searching TMDB for: '{query}'")
+    try:
+        q_enc = urllib.parse.quote(query)
+        # Search multi to find both movies and tv
+        url = f"https://api.themoviedb.org/3/search/multi?api_key={TMDB_API_KEY}&query={q_enc}&language=ru-RU&page=1"
+        with urllib.request.urlopen(url, timeout=5) as r:
+            data = json.loads(r.read().decode())
+            if not data.get('results'): return None
+            
+            # Filter only movie or tv
+            valid_results = [x for x in data['results'] if x.get('media_type') in ['movie', 'tv']]
+            if not valid_results: return None
+
+            item = valid_results[0]
+            media_type = item.get('media_type')
+            
+            if media_type == 'movie':
+                title = item.get('title') or item.get('original_title')
+                date = item.get('release_date', '')
+            else:
+                title = item.get('name') or item.get('original_name')
+                date = item.get('first_air_date', '')
+
+            year = date[:4] if date and len(date) >= 4 else ""
+            
+            return {'type': media_type, 'title': str(title), 'year': year, 'source': 'TMDB'}
+    except Exception as e:
+        logger.error(f"--> [API:TMDB] Error: {e}")
+    return None
+
+def check_tvdb(query):
+    if not TVDB_API_KEY or "YOUR_" in TVDB_API_KEY: return None
+    logger.info(f"--> [API:TVDB] Searching TVDB for: '{query}'")
+    try:
+        # 1. Login to get token
+        login_url = "https://api4.thetvdb.com/v4/login"
+        login_data = json.dumps({"apikey": TVDB_API_KEY}).encode('utf-8')
+        req = urllib.request.Request(login_url, data=login_data, method='POST')
+        req.add_header('Content-Type', 'application/json')
+        
+        with urllib.request.urlopen(req, timeout=5) as r:
+            token_data = json.loads(r.read().decode())
+            token = token_data.get('data', {}).get('token')
+            if not token: return None
+
+        # 2. Search
+        q_enc = urllib.parse.quote(query)
+        search_url = f"https://api4.thetvdb.com/v4/search?query={q_enc}"
+        req_s = urllib.request.Request(search_url)
+        req_s.add_header('Authorization', f'Bearer {token}')
+        
+        with urllib.request.urlopen(req_s, timeout=5) as r:
+            data = json.loads(r.read().decode())
+            if not data.get('data'): return None
+            
+            # Prioritize matches
+            item = data['data'][0]
+            
+            # TVDB types: series, movie
+            raw_type = item.get('type', 'series') # default to series if unknown
+            t = 'movie' if raw_type == 'movie' else 'tv'
+            
+            # TVDB often returns English names, check aliases or translations if needed, 
+            # but for simple search we take the main name or first translation
+            title = item.get('name')
+            if item.get('translations') and item['translations'].get('rus'):
+                title = item['translations']['rus']
+                
+            year = item.get('year') or ""
+            
+            return {'type': t, 'title': str(title), 'year': str(year), 'source': 'TVDB'}
+
+    except Exception as e:
+        logger.error(f"--> [API:TVDB] Error: {e}")
+    return None
+
+def resolve_metadata(clean_name):
+    # Chain of responsibility
+    meta = None
+    
+    if USE_KP:
+        meta = check_kp(clean_name)
+        if meta: return meta
+        
+    if USE_TMDB:
+        meta = check_tmdb(clean_name)
+        if meta: return meta
+        
+    if USE_TVDB:
+        meta = check_tvdb(clean_name)
+        if meta: return meta
+        
+    return None
+
+def safe_transfer_file(src_path, dest_path):
+    logger.info(f"--> [COPY] Starting copy: {src_path.name} -> {dest_path}")
+    try:
+        shutil.copyfile(src_path, dest_path)
+        if not os.path.exists(dest_path):
+            logger.error("--> [COPY] Failed: Destination file not found after copy.")
+            return False
+        
+        s_size = src_path.stat().st_size
+        d_size = Path(dest_path).stat().st_size
+        
+        if s_size == d_size:
+            logger.info(f"--> [COPY] Success. Verified size: {s_size} bytes.")
+            logger.info(f"--> [DELETE] Deleting source file: {src_path.name}")
+            try:
+                os.remove(src_path)
+                return True
+            except Exception as del_err:
+                logger.warning(f"--> [DELETE] Failed to delete source file: {del_err}")
+                return True 
+        else:
+            logger.error(f"--> [COPY] Size mismatch! Src: {s_size} != Dest: {d_size}")
+            if os.path.exists(dest_path): os.remove(dest_path)
+            return False
+    except Exception as e:
+        logger.error(f"--> [COPY] Critical Error: {e}")
+        if os.path.exists(dest_path): 
+            try: os.remove(dest_path)
+            except: pass
+        return False
+
+def get_season_episode(name):
+    m = re.search(r'(?i)(s\d{1,2}e\d{1,2})', name)
+    if m: return m.group(1).upper()
+    m = re.search(r'(?i)(\d{1,2}x\d{1,2})', name)
+    return m.group(1).lower() if m else None
+
+def process_folder_content(src_folder, dest_folder, show_name, year):
+    cnt = 0
+    errors = 0
+    logger.info(f"--> [FOLDER] Processing folder: {src_folder.name}")
+    
+    for f in src_folder.rglob('*'):
+        if f.is_file() and f.suffix.lower() in VIDEO_EXTS:
+            if show_name:
+                base_fname = f"{show_name} ({year})" if year else show_name
+                nf = f"{base_fname} ({f.stem}){f.suffix}"
+            else:
+                nf = f.name
+            
+            target = dest_folder / nf
+            final = get_unique_path(target)
+            
+            if safe_transfer_file(f, final):
+                cnt += 1
+            else:
+                errors += 1
+    
+    logger.info(f"--> [FOLDER] Processed {cnt} files. Errors: {errors}.")
+    if cnt > 0 and errors == 0:
+        try:
+            logger.info(f"--> [DELETE] Removing source folder: {src_folder}")
+            shutil.rmtree(src_folder)
+        except Exception as e:
+            logger.warning(f"--> [DELETE] Failed to remove folder: {e}")
+    return cnt
+
+def process_torrent(path):
+    p = Path(path)
+    logger.info("="*50)
+    logger.info(f"[START] Processing: {p}")
+    
+    if not p.exists():
+        logger.error(f"Path not found: {path}")
+        return
+
+    sp = load_masks(SERIES_MASKS_FILE)
+    mp = load_masks(MOVIES_MASKS_FILE)
+    
+    m_v = None
+    target_name_for_api = p.name
+    force_series = False 
+    
+    # 1. DEEP SCAN
+    if p.is_dir():
+        logger.info("--> [SCAN] Directory detected. Scanning content...")
+        for subfile in p.rglob('*'):
+            if subfile.is_file() and subfile.suffix.lower() in VIDEO_EXTS:
+                if get_season_episode(subfile.name):
+                    logger.info(f"--> [SCAN] Found explicit series episode tag: {subfile.name}")
+                    force_series = True
+                    target_name_for_api = subfile.name 
+                    break
+                if check_match(subfile.name, sp):
+                    logger.info(f"--> [SCAN] Found series match by mask: {subfile.name}")
+                    force_series = True
+                    target_name_for_api = subfile.name 
+                    break
+    
+    if force_series:
+        m_v = 'tv'
+        logger.info("--> [SCAN] Force Series Mode activated.")
+
+    if not m_v:
+        logger.info("--> [MASK] Checking against masks...")
+        m_v = 'tv' if check_match(p.name, sp) else ('movie' if check_match(p.name, mp) else None)
+        logger.info(f"--> [MASK] Verdict: {m_v}")
+    
+    # 2. API (CHAIN)
+    api_data = None
+    q_name = clean_search(target_name_for_api)
+    
+    if len(q_name) >= 2:
+        api_data = resolve_metadata(q_name)
+    else:
+         logger.warning(f"--> [API] Query too short ('{q_name}'). Skipping API checks.")
+
+    if api_data: 
+        api_type = api_data['type']
+        source = api_data.get('source', 'UNK')
+        logger.info(f"--> [DECISION] API ({source}) found type: {api_type}")
+        if force_series and api_type != 'tv':
+            logger.warning(f"--> [OVERRIDE] API says {api_type}, but files contain series patterns. Forcing TV.")
+            m_v = 'tv'
+        else:
+            m_v = api_type
+    else: 
+        logger.info("--> [DECISION] All APIs failed or disabled. Falling back to Regex.")
+
+    if not m_v:
+        if force_series: m_v = 'tv'
+        else:
+            logger.error("--> [DECISION] Could not determine type. Stopping.")
+            return
+
+    # PREPARE
+    if api_data:
+        title = sanitize(api_data['title'])
+        year = api_data['year'] if api_data['year'] != 'null' else ""
+        base = f"{title} ({year})" if year else title
+    else:
+        title = sanitize(p.name)
+        year = ""
+        base = title
+    
+    success = False
+    
+    # 3. TRANSFER
+    if m_v == 'tv' and p.is_dir():
+        dest = Path(SERIES_FOLDER) / base
+        dest.mkdir(parents=True, exist_ok=True)
+        cnt = process_folder_content(p, dest, title if api_data else None, year)
+        if cnt: 
+            send_telegram(f"📺 <b>Сериал готов</b>\n{base}\nФайлов: {cnt}")
+            success = True
+
+    elif m_v == 'movie' and p.is_dir():
+        dest = Path(MOVIES_FOLDER) / base
+        dest.mkdir(parents=True, exist_ok=True)
+        cnt = process_folder_content(p, dest, title if api_data else None, year)
+        if cnt: 
+            send_telegram(f"🎬 <b>Фильм готов</b>\n{base}")
+            success = True
+
+    elif p.is_file():
+        dest_root = Path(MOVIES_FOLDER) if m_v == 'movie' else Path(SERIES_FOLDER)
+        fname = f"{base} ({p.stem}){p.suffix}" if api_data else p.name
+        final = get_unique_path(dest_root / fname)
+        if safe_transfer_file(p, final):
+            icon = "🎬" if m_v == 'movie' else "📺"
+            send_telegram(f"{icon} <b>Готово</b>\n{final.name}")
+            success = True
+
+    # 4. REMOVE TORRENT
+    if success:
+        tr_id = os.environ.get('TR_TORRENT_ID')
+        if tr_id:
+            logger.info(f"--> [TORRENT] Cleaning up torrent ID: {tr_id}")
+            remove_torrent_from_client(tr_id)
+        else:
+            logger.info("--> [TORRENT] No TR_TORRENT_ID env var. Skipping removal.")
+            
+    logger.info("[DONE] Processing finished.")
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        process_torrent(sys.argv[1])
+    else:
+        tr_dir = os.environ.get('TR_TORRENT_DIR')
+        tr_name = os.environ.get('TR_TORRENT_NAME')
+        if tr_dir and tr_name:
+            try:
+                process_torrent(os.path.join(tr_dir, tr_name))
+            except Exception as e:
+                logger.error(f"Critical error: {e}")
+                send_telegram(f"⚠️ Ошибка скрипта: {e}")
+        else:
+            logger.error("No arguments provided.")

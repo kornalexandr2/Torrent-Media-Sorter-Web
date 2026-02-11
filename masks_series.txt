@@ -1,0 +1,16 @@
+(?i)s\d{1,2}[._-]?e\d{1,2}
+(?i)s\d{1,2}[._-]?e\d{1,3}[-~]e?\d{1,3}
+(?i)\b\d{1,2}x\d{1,2}\b
+(?i)\bseason\b[\s._-]?\d{1,2}
+(?i)\bсезон\b[\s._-]?\d{1,2}
+(?i)[._-]\s?s\d{1,2}\s?[._-]
+(?i)\bcomplete[\s._-]?season\b
+(?i)\bep\d{1,3}\b
+(?i)\bepisode\b
+(?i)\bсерия\b
+(?i)\bminiseries\b
+(?i)\bмини-?сериал\b
+(?i)\bsoap\b
+(?i)\bdorama\b
+(?i)\banime\b
+(?i)\bova\b
