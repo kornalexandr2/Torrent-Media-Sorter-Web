@@ -4,7 +4,7 @@
 """
 Transmission Media Sorter
 -------------------------
-Repository: https://github.com/ваше-имя/transmission-media-sorter
+Repository: https://github.com/kornalexandr2/Transmission-Media-Sorter
 License: MIT
 """
 
