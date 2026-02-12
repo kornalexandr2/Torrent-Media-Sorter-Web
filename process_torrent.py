@@ -6,7 +6,7 @@ Transmission Media Sorter
 -------------------------
 Автоматический сортировщик медиафайлов для Transmission.
 Определяет тип контента (Фильм/Сериал) по маскам или API (Kinopoisk, TMDB, TVDB),
-переименовывает и раскладывает по папкам.
+переименовывает и раскладывает по папкам с учетом настроек языка.
 
 Repository: https://github.com/ваше-имя/transmission-media-sorter
 License: MIT
@@ -40,6 +40,10 @@ MOVIES_FOLDER = config['PATHS']['movies_folder']
 SERIES_FOLDER = config['PATHS']['series_folder']
 LOG_FILE = config['LOGGING']['log_file']
 VIDEO_EXTS = tuple(config.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+
+# RENAMING CONFIG
+RENAME_MODE = config.get('RENAMING', 'rename_mode', fallback='ru').lower()
+SAVE_ORIGINAL_FILENAME = config.getboolean('RENAMING', 'save_original_filename', fallback=True)
 
 # API CONFIG
 USE_KP = config.getboolean('API', 'use_kp', fallback=False)
@@ -124,6 +128,7 @@ def check_match(name, patterns):
     return False
 
 def sanitize(name):
+    if not name: return ""
     name = re.sub(r'[:/\\|]', ' - ', name)
     return re.sub(r'[?"*<>]', '', name).strip()
 
@@ -161,11 +166,17 @@ def check_kp(query):
             
             item = data['films'][0]
             k_type = item.get('type')
-            title = item.get('nameRu') or item.get('nameEn') or item.get('nameOriginal') or query
+            
+            titles = {
+                'ru': item.get('nameRu'),
+                'en': item.get('nameEn'),
+                'origin': item.get('nameOriginal') or item.get('nameEn')
+            }
+            
             year = str(item.get('year') or '')
             t = 'movie' if k_type == 'FILM' else ('tv' if k_type in ['TV_SERIES', 'MINI_SERIES', 'TV_SHOW'] else None)
             
-            if t: return {'type': t, 'title': str(title), 'year': year, 'source': 'KP'}
+            if t: return {'type': t, 'titles': titles, 'year': year, 'source': 'KP'}
     except Exception as e:
         logger.error(f"--> [API:KP] Error: {e}")
     return None
@@ -181,7 +192,6 @@ def check_tmdb(query):
             data = json.loads(r.read().decode())
             if not data.get('results'): return None
             
-            # Filter only movie or tv
             valid_results = [x for x in data['results'] if x.get('media_type') in ['movie', 'tv']]
             if not valid_results: return None
 
@@ -189,15 +199,25 @@ def check_tmdb(query):
             media_type = item.get('media_type')
             
             if media_type == 'movie':
-                title = item.get('title') or item.get('original_title')
+                t_ru = item.get('title')
+                t_orig = item.get('original_title')
                 date = item.get('release_date', '')
             else:
-                title = item.get('name') or item.get('original_name')
+                t_ru = item.get('name')
+                t_orig = item.get('original_name')
                 date = item.get('first_air_date', '')
+            
+            # TMDB simple search doesn't easily give "English" if origin is not English. 
+            # We fallback 'en' to 'original' or 'ru'
+            titles = {
+                'ru': t_ru,
+                'en': t_orig, # Approximation for TMDB
+                'origin': t_orig
+            }
 
             year = date[:4] if date and len(date) >= 4 else ""
             
-            return {'type': media_type, 'title': str(title), 'year': year, 'source': 'TMDB'}
+            return {'type': media_type, 'titles': titles, 'year': year, 'source': 'TMDB'}
     except Exception as e:
         logger.error(f"--> [API:TMDB] Error: {e}")
     return None
@@ -206,18 +226,15 @@ def check_tvdb(query):
     if not TVDB_API_KEY or "YOUR_" in TVDB_API_KEY: return None
     logger.info(f"--> [API:TVDB] Searching TVDB for: '{query}'")
     try:
-        # 1. Login to get token
         login_url = "https://api4.thetvdb.com/v4/login"
         login_data = json.dumps({"apikey": TVDB_API_KEY}).encode('utf-8')
         req = urllib.request.Request(login_url, data=login_data, method='POST')
         req.add_header('Content-Type', 'application/json')
-        
         with urllib.request.urlopen(req, timeout=5) as r:
             token_data = json.loads(r.read().decode())
             token = token_data.get('data', {}).get('token')
             if not token: return None
 
-        # 2. Search
         q_enc = urllib.parse.quote(query)
         search_url = f"https://api4.thetvdb.com/v4/search?query={q_enc}"
         req_s = urllib.request.Request(search_url)
@@ -227,44 +244,88 @@ def check_tvdb(query):
             data = json.loads(r.read().decode())
             if not data.get('data'): return None
             
-            # Prioritize matches
             item = data['data'][0]
-            
-            # TVDB types: series, movie
-            raw_type = item.get('type', 'series') # default to series if unknown
+            raw_type = item.get('type', 'series')
             t = 'movie' if raw_type == 'movie' else 'tv'
             
-            # TVDB often returns English names, check aliases or translations if needed, 
-            # but for simple search we take the main name or first translation
-            title = item.get('name')
+            t_orig = item.get('name')
+            t_ru = None
             if item.get('translations') and item['translations'].get('rus'):
-                title = item['translations']['rus']
+                t_ru = item['translations']['rus']
+            
+            titles = {
+                'ru': t_ru or t_orig,
+                'en': t_orig, # TVDB often defaults to EN
+                'origin': t_orig
+            }
                 
             year = item.get('year') or ""
             
-            return {'type': t, 'title': str(title), 'year': str(year), 'source': 'TVDB'}
+            return {'type': t, 'titles': titles, 'year': str(year), 'source': 'TVDB'}
 
     except Exception as e:
         logger.error(f"--> [API:TVDB] Error: {e}")
     return None
 
 def resolve_metadata(clean_name):
-    # Chain of responsibility
     meta = None
-    
     if USE_KP:
         meta = check_kp(clean_name)
         if meta: return meta
-        
     if USE_TMDB:
         meta = check_tmdb(clean_name)
         if meta: return meta
-        
     if USE_TVDB:
         meta = check_tvdb(clean_name)
         if meta: return meta
-        
     return None
+
+def construct_filename(meta, original_file_path):
+    """
+    Формирует итоговое имя файла или папки на основе настроек.
+    meta: результат API или None
+    original_file_path: Path объект исходного файла
+    """
+    
+    # Если режим "не менять" или данных нет, возвращаем оригинал
+    if RENAME_MODE == 'no_change' or not meta:
+        return original_file_path.name
+    
+    titles = meta['titles']
+    year = meta['year']
+    
+    # Выбираем целевое название
+    target_title = None
+    
+    if RENAME_MODE == 'ru':
+        target_title = titles.get('ru')
+    elif RENAME_MODE == 'en':
+        target_title = titles.get('en')
+    elif RENAME_MODE == 'origin':
+        target_title = titles.get('origin')
+    
+    # Если выбранного языка нет, откатываемся: Ru -> Origin -> En
+    if not target_title:
+        target_title = titles.get('ru') or titles.get('origin') or titles.get('en')
+    
+    # Если совсем ничего нет, используем имя файла
+    if not target_title:
+        target_title = original_file_path.stem
+
+    clean_title = sanitize(target_title)
+    
+    # Базовое имя: "Название (Год)"
+    final_base = f"{clean_title} ({year})" if year else clean_title
+    
+    # Если это файл, добавляем расширение и опционально оригинал в скобках
+    if original_file_path.suffix: 
+        if SAVE_ORIGINAL_FILENAME:
+            return f"{final_base} ({original_file_path.stem}){original_file_path.suffix}"
+        else:
+            return f"{final_base}{original_file_path.suffix}"
+            
+    # Если это папка (нет расширения)
+    return final_base
 
 def safe_transfer_file(src_path, dest_path):
     logger.info(f"--> [COPY] Starting copy: {src_path.name} -> {dest_path}")
@@ -303,16 +364,17 @@ def get_season_episode(name):
     m = re.search(r'(?i)(\d{1,2}x\d{1,2})', name)
     return m.group(1).lower() if m else None
 
-def process_folder_content(src_folder, dest_folder, show_name, year):
+def process_folder_content(src_folder, dest_folder, meta):
     cnt = 0
     errors = 0
     logger.info(f"--> [FOLDER] Processing folder: {src_folder.name}")
     
     for f in src_folder.rglob('*'):
         if f.is_file() and f.suffix.lower() in VIDEO_EXTS:
-            if show_name:
-                base_fname = f"{show_name} ({year})" if year else show_name
-                nf = f"{base_fname} ({f.stem}){f.suffix}"
+            
+            # Формируем имя для каждого файла
+            if meta:
+                nf = construct_filename(meta, f)
             else:
                 nf = f.name
             
@@ -401,15 +463,22 @@ def process_torrent(path):
             logger.error("--> [DECISION] Could not determine type. Stopping.")
             return
 
-    # PREPARE
+    # PREPARE FOLDER NAME (For Movies/Series root folder)
     if api_data:
-        title = sanitize(api_data['title'])
-        year = api_data['year'] if api_data['year'] != 'null' else ""
-        base = f"{title} ({year})" if year else title
+        # Папка назначения также использует настройки переименования, но без расширения
+        # Передаем "фиктивный" путь без расширения, чтобы функция поняла логику
+        dummy_path = Path(p.name) # просто имя папки
+        # Здесь мы немного хитрим: construct_filename рассчитан на файлы (добавляет скобки)
+        # Для папки нам нужно просто "Название (Год)"
+        # Вызовем логику вручную или адаптируем. 
+        # Проще взять логику base name из функции construct_filename:
+        titles = api_data['titles']
+        t_base = titles.get(RENAME_MODE) or titles.get('ru') or titles.get('origin') or titles.get('en') or p.name
+        t_clean = sanitize(t_base)
+        year = api_data['year']
+        base = f"{t_clean} ({year})" if year else t_clean
     else:
-        title = sanitize(p.name)
-        year = ""
-        base = title
+        base = sanitize(p.name)
     
     success = False
     
@@ -417,7 +486,7 @@ def process_torrent(path):
     if m_v == 'tv' and p.is_dir():
         dest = Path(SERIES_FOLDER) / base
         dest.mkdir(parents=True, exist_ok=True)
-        cnt = process_folder_content(p, dest, title if api_data else None, year)
+        cnt = process_folder_content(p, dest, api_data)
         if cnt: 
             send_telegram(f"📺 <b>Сериал готов</b>\n{base}\nФайлов: {cnt}")
             success = True
@@ -425,14 +494,19 @@ def process_torrent(path):
     elif m_v == 'movie' and p.is_dir():
         dest = Path(MOVIES_FOLDER) / base
         dest.mkdir(parents=True, exist_ok=True)
-        cnt = process_folder_content(p, dest, title if api_data else None, year)
+        cnt = process_folder_content(p, dest, api_data)
         if cnt: 
             send_telegram(f"🎬 <b>Фильм готов</b>\n{base}")
             success = True
 
     elif p.is_file():
         dest_root = Path(MOVIES_FOLDER) if m_v == 'movie' else Path(SERIES_FOLDER)
-        fname = f"{base} ({p.stem}){p.suffix}" if api_data else p.name
+        
+        if api_data:
+            fname = construct_filename(api_data, p)
+        else:
+            fname = p.name
+            
         final = get_unique_path(dest_root / fname)
         if safe_transfer_file(p, final):
             icon = "🎬" if m_v == 'movie' else "📺"
