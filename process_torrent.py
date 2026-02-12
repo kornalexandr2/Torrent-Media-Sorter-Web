@@ -11,6 +11,7 @@ License: MIT
 import os
 import shutil
 import logging
+import logging.handlers
 import re
 import configparser
 import sys
@@ -22,25 +23,40 @@ import platform
 from pathlib import Path
 
 # --- НАСТРОЙКИ ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, 'config.ini')
-MOVIES_MASKS_FILE = os.path.join(BASE_DIR, 'masks_movies.txt')
-SERIES_MASKS_FILE = os.path.join(BASE_DIR, 'masks_series.txt')
+BASE_DIR = Path(__file__).resolve().parent
+CONFIG_FILE = BASE_DIR / 'config.ini'
+MOVIES_MASKS_FILE = BASE_DIR / 'masks_movies.txt'
+SERIES_MASKS_FILE = BASE_DIR / 'masks_series.txt'
+STOP_WORDS_FILE = BASE_DIR / 'stop_words.txt'
 
 config = configparser.ConfigParser()
-if not os.path.exists(CONFIG_FILE):
+if not CONFIG_FILE.exists():
     # Логгер еще не настроен, выводим в stderr
     sys.stderr.write(f"Critical: Config file not found at {CONFIG_FILE}\n")
     sys.exit(1)
 
-config.read(CONFIG_FILE)
+config.read(CONFIG_FILE, encoding='utf-8')
 
 # Исправление путей: раскрываем ~ (home directory) для кросс-платформенности
-MOVIES_FOLDER = os.path.expanduser(config['PATHS']['movies_folder'])
-SERIES_FOLDER = os.path.expanduser(config['PATHS']['series_folder'])
+# Используем pathlib для expanduser
+MOVIES_FOLDER = Path(config['PATHS']['movies_folder']).expanduser()
+SERIES_FOLDER = Path(config['PATHS']['series_folder']).expanduser()
 
-LOG_FILE = os.path.expanduser(config['LOGGING']['log_file'])
-VIDEO_EXTS = tuple(config.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+LOG_FILE = Path(config['LOGGING']['log_file']).expanduser()
+VIDEO_EXTS = tuple(x.strip() for x in config.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+
+def load_simple_list(filepath):
+    items = []
+    if filepath.exists():
+        with filepath.open('r', encoding='utf-8') as f:
+            for line in f:
+                stripped = line.strip()
+                if stripped and not stripped.startswith('#'):
+                    items.append(stripped)
+    return items
+
+# SEARCH CONFIG
+STOP_WORDS = load_simple_list(STOP_WORDS_FILE)
 
 # RENAMING CONFIG
 RENAME_MODE = config.get('RENAMING', 'rename_mode', fallback='ru').lower()
@@ -72,17 +88,19 @@ logger = logging.getLogger('MediaSorter')
 log_level_str = config.get('LOGGING', 'level', fallback='INFO').upper()
 logger.setLevel(getattr(logging, log_level_str, logging.INFO))
 
-# FIX: Проверяем наличие хендлеров перед добавлением, чтобы избежать дублирования (Issue process_torrent.py:65)
+# FIX: Проверяем наличие хендлеров перед добавлением, чтобы избежать дублирования
 if not logger.handlers:
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     
-    # Файл
+    # Файл (RotatingFileHandler)
     try:
         # Убедимся, что директория логов существует
-        log_path = Path(LOG_FILE)
-        log_path.parent.mkdir(parents=True, exist_ok=True)
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
         
-        fh = logging.FileHandler(LOG_FILE)
+        # 5 MB max size, 5 backups
+        fh = logging.handlers.RotatingFileHandler(
+            LOG_FILE, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8'
+        )
         fh.setFormatter(formatter)
         logger.addHandler(fh)
     except Exception as e:
@@ -135,16 +153,16 @@ def remove_torrent_from_client(torrent_id):
 
 def load_masks(filepath):
     masks = []
-    if os.path.exists(filepath):
-        with open(filepath, 'r') as f:
+    # filepath is already a Path object from config setup
+    if filepath.exists():
+        with filepath.open('r', encoding='utf-8') as f:
             for line in f:
                 stripped = line.strip()
                 if stripped and not stripped.startswith('#'):
-                    # FIX: Логирование ошибок регулярных выражений (Issue process_torrent.py:117)
                     try: 
                         masks.append(re.compile(stripped))
                     except re.error as e:
-                        logger.warning(f"Invalid mask pattern '{stripped}' in {os.path.basename(filepath)}: {e}")
+                        logger.warning(f"Invalid mask pattern '{stripped}' in {filepath.name}: {e}")
     return masks
 
 def check_match(name, patterns):
@@ -158,7 +176,8 @@ def sanitize(name):
     return re.sub(r'[?"*<>]', '', name).strip()
 
 def get_unique_path(path):
-    p = Path(path)
+    # path is expected to be a Path object
+    p = path
     if not p.exists(): return p
     counter = 1
     while True:
@@ -168,9 +187,19 @@ def get_unique_path(path):
 
 def clean_search(name):
     n = Path(name).stem.replace('.', ' ').replace('_', ' ')
-    n = re.sub(r'(19|20)\d{2}.*', '', n)
-    n = re.sub(r'(?i)(s\d+|season|сезон|720p|1080p|bluray|web-dl|rip).*', '', n)
-    n = re.sub(r'(?i)(lostfilm|newstudio|baibako|alexfilm|tv|amedia|kubik|kuraj|hdrezka).*', '', n)
+    # Fix: Require space before year to avoid breaking titles like "1917"
+    n = re.sub(r'\s(19|20)\d{2}\b.*', '', n)
+    
+    # Expanded quality and technical tags
+    quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub|itunes|amzn|nf|dsnp|hmax|repack|proper|internal'
+    n = re.sub(r'(?i)\b(' + quality_tags + r')\b.*', '', n)
+    
+    # Use STOP_WORDS from config
+    if STOP_WORDS:
+        # Create a pattern like \b(lostfilm|newstudio|...)\b
+        pattern_str = '|'.join(re.escape(w) for w in STOP_WORDS)
+        n = re.sub(r'(?i)\b(' + pattern_str + r')\b.*', '', n)
+
     n = re.sub(r'\s\d+$', '', n)
     return n.strip(' -()[]')
 
@@ -277,22 +306,23 @@ def construct_filename(meta, original_file_path):
     return final_base
 
 def safe_transfer_file(src_path, dest_path):
+    # Ensure dest_path is a Path object
+    dest_path = Path(dest_path)
     logger.info(f"--> [COPY] Starting copy: {src_path.name} -> {dest_path}")
     try:
         shutil.copyfile(src_path, dest_path)
-        if not os.path.exists(dest_path):
+        if not dest_path.exists():
             logger.error("--> [COPY] Failed: Destination file not found after copy.")
             return False
         
         s_size = src_path.stat().st_size
-        d_size = Path(dest_path).stat().st_size
+        d_size = dest_path.stat().st_size
         
-        # FIX: Улучшенная проверка размеров (Issue process_torrent.py:270)
         if s_size == d_size:
             logger.info(f"--> [COPY] Success. Verified size: {s_size} bytes.")
             logger.info(f"--> [DELETE] Deleting source file: {src_path.name}")
             try:
-                os.remove(src_path)
+                src_path.unlink()
                 return True
             except Exception as del_err:
                 logger.warning(f"--> [DELETE] Failed to delete source file: {del_err}")
@@ -300,14 +330,14 @@ def safe_transfer_file(src_path, dest_path):
         else:
             logger.error(f"--> [COPY] CRITICAL SIZE MISMATCH! Source: {s_size}, Dest: {d_size}")
             logger.error("--> [COPY] The destination file is likely corrupted. Deleting destination file to prevent issues.")
-            if os.path.exists(dest_path): 
-                os.remove(dest_path)
+            if dest_path.exists(): 
+                dest_path.unlink()
             return False
             
     except Exception as e:
         logger.error(f"--> [COPY] Critical Exception: {e}")
-        if os.path.exists(dest_path): 
-            try: os.remove(dest_path)
+        if dest_path.exists(): 
+            try: dest_path.unlink()
             except: pass
         return False
 
@@ -412,7 +442,7 @@ def process_torrent(path):
     success = False
     
     if m_v == 'tv' and p.is_dir():
-        dest = Path(SERIES_FOLDER) / base
+        dest = SERIES_FOLDER / base
         dest.mkdir(parents=True, exist_ok=True)
         cnt = process_folder_content(p, dest, api_data)
         if cnt: 
@@ -420,7 +450,7 @@ def process_torrent(path):
             success = True
 
     elif m_v == 'movie' and p.is_dir():
-        dest = Path(MOVIES_FOLDER) / base
+        dest = MOVIES_FOLDER / base
         dest.mkdir(parents=True, exist_ok=True)
         cnt = process_folder_content(p, dest, api_data)
         if cnt: 
@@ -428,7 +458,7 @@ def process_torrent(path):
             success = True
 
     elif p.is_file():
-        dest_root = Path(MOVIES_FOLDER) if m_v == 'movie' else Path(SERIES_FOLDER)
+        dest_root = MOVIES_FOLDER if m_v == 'movie' else SERIES_FOLDER
         if api_data: fname = construct_filename(api_data, p)
         else: fname = p.name
         final = get_unique_path(dest_root / fname)
@@ -453,13 +483,16 @@ def process_torrent(path):
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
+        # sys.argv[1] is a string, process_torrent converts it to Path
         process_torrent(sys.argv[1])
     else:
         tr_dir = os.environ.get('TR_TORRENT_DIR')
         tr_name = os.environ.get('TR_TORRENT_NAME')
         if tr_dir and tr_name:
             try:
-                process_torrent(os.path.join(tr_dir, tr_name))
+                # Use pathlib to join paths
+                full_path = Path(tr_dir) / tr_name
+                process_torrent(full_path)
             except Exception as e:
                 logger.error(f"Critical error: {e}")
                 send_telegram(f"⚠️ Ошибка скрипта: {e}")

@@ -1,0 +1,28 @@
+# Список стоп-слов (релиз-группы, теги), которые будут удалены из названия перед поиском в API.
+# Каждое слово на новой строке. Пустые строки и строки, начинающиеся с #, игнорируются.
+
+lostfilm
+newstudio
+baibako
+alexfilm
+tv
+amedia
+kubik
+kuraj
+hdrezka
+coldfilm
+jaskier
+ideafilm
+fostudio
+sunshine
+parovozik
+octopus
+softbox
+gearsmedia
+vsi
+sdi
+iyuno
+dub
+sub
+rus
+eng
