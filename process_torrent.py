@@ -186,22 +186,35 @@ def get_unique_path(path):
         counter += 1
 
 def clean_search(name):
-    n = Path(name).stem.replace('.', ' ').replace('_', ' ')
+    # Get stem and replace separators
+    stem = Path(name).stem
+    n = stem.replace('.', ' ').replace('_', ' ').strip()
+    
+    # Store a base version for fallback (just basic cleanup)
+    base_cleaned = n
+    
     # Fix: Require space before year to avoid breaking titles like "1917"
+    # By stripping before this step, we ensure "1917 2019" remains "1917"
     n = re.sub(r'\s(19|20)\d{2}\b.*', '', n)
     
     # Expanded quality and technical tags
     quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub|itunes|amzn|nf|dsnp|hmax|repack|proper|internal'
     n = re.sub(r'(?i)\b(' + quality_tags + r')\b.*', '', n)
     
-    # Use STOP_WORDS from config
+    # Use STOP_WORDS from config/file
     if STOP_WORDS:
-        # Create a pattern like \b(lostfilm|newstudio|...)\b
         pattern_str = '|'.join(re.escape(w) for w in STOP_WORDS)
         n = re.sub(r'(?i)\b(' + pattern_str + r')\b.*', '', n)
 
     n = re.sub(r'\s\d+$', '', n)
-    return n.strip(' -()[]')
+    result = n.strip(' -()[]')
+    
+    # Safety: If cleaning was too aggressive and result is too short, 
+    # but the base version was longer, return the base version.
+    if len(result) < 2 and len(base_cleaned) >= 2:
+        return base_cleaned.strip(' -()[]')
+        
+    return result
 
 # --- API FUNCTIONS (KP, TMDB, TVDB) --- 
 # (Код API функций оставлен без изменений для краткости, так как замечаний не было)
