@@ -4,6 +4,10 @@
 """
 Transmission Media Sorter
 -------------------------
+Автоматический сортировщик медиафайлов для Transmission.
+Определяет тип контента, скачивает метаданные, переименовывает файлы (включая субтитры)
+и раскладывает по папкам.
+
 Repository: https://github.com/kornalexandr2/Transmission-Media-Sorter
 License: MIT
 """
@@ -19,7 +23,6 @@ import json
 import urllib.request
 import urllib.parse
 import subprocess
-import platform
 from pathlib import Path
 
 # --- НАСТРОЙКИ ---
@@ -31,19 +34,17 @@ STOP_WORDS_FILE = BASE_DIR / 'stop_words.txt'
 
 config = configparser.ConfigParser()
 if not CONFIG_FILE.exists():
-    # Логгер еще не настроен, выводим в stderr
     sys.stderr.write(f"Critical: Config file not found at {CONFIG_FILE}\n")
     sys.exit(1)
 
 config.read(CONFIG_FILE, encoding='utf-8')
 
-# Исправление путей: раскрываем ~ (home directory) для кросс-платформенности
-# Используем pathlib для expanduser
+# Пути
 MOVIES_FOLDER = Path(config['PATHS']['movies_folder']).expanduser()
 SERIES_FOLDER = Path(config['PATHS']['series_folder']).expanduser()
-
 LOG_FILE = Path(config['LOGGING']['log_file']).expanduser()
 VIDEO_EXTS = tuple(x.strip() for x in config.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+SUBTITLE_EXTS = ('.srt', '.sub', '.ass', '.vtt')
 
 def load_simple_list(filepath):
     items = []
@@ -55,7 +56,6 @@ def load_simple_list(filepath):
                     items.append(stripped)
     return items
 
-# SEARCH CONFIG
 STOP_WORDS = load_simple_list(STOP_WORDS_FILE)
 
 # RENAMING CONFIG
@@ -88,16 +88,11 @@ logger = logging.getLogger('MediaSorter')
 log_level_str = config.get('LOGGING', 'level', fallback='INFO').upper()
 logger.setLevel(getattr(logging, log_level_str, logging.INFO))
 
-# FIX: Проверяем наличие хендлеров перед добавлением, чтобы избежать дублирования
 if not logger.handlers:
     formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    
-    # Файл (RotatingFileHandler)
     try:
-        # Убедимся, что директория логов существует
         LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-        
-        # 5 MB max size, 5 backups
+        # Ротация логов: макс 5 МБ, храним 5 файлов
         fh = logging.handlers.RotatingFileHandler(
             LOG_FILE, maxBytes=5*1024*1024, backupCount=5, encoding='utf-8'
         )
@@ -106,7 +101,6 @@ if not logger.handlers:
     except Exception as e:
         sys.stderr.write(f"Warning: Could not setup file logging: {e}\n")
 
-    # Консоль
     sh = logging.StreamHandler()
     sh.setFormatter(formatter)
     logger.addHandler(sh)
@@ -127,20 +121,19 @@ def send_telegram(text):
 
 def remove_torrent_from_client(torrent_id):
     if not torrent_id: return
-    
-    # FIX: Проверка наличия утилиты transmission-remote (Issue process_torrent.py:95)
     executable = shutil.which('transmission-remote')
     if not executable:
-        # Если это Windows, transmission-remote может не быть в PATH.
-        # Можно попробовать указать полный путь, если он известен, или вывести ошибку.
-        logger.warning(f"--> [TORRENT] 'transmission-remote' executable not found in PATH. Cannot remove torrent ID {torrent_id}.")
-        logger.warning("--> [TORRENT] If you are on Windows, ensure transmission-remote-gui or cli tools are installed and in PATH.")
-        return
+        logger.warning(f"--> [TORRENT] 'transmission-remote' not found via shutil.which. Trying direct call.")
+        executable = 'transmission-remote' 
 
-    cmd = [executable, f"{TR_HOST}:{TR_PORT}", '--torrent', str(torrent_id), '--remove']
+    # Формируем команду с правильным порядком аргументов
+    cmd = [executable, f"{TR_HOST}:{TR_PORT}"]
+    
     if TR_USER and TR_PASS and "YOUR_" not in TR_USER:
-        cmd.insert(1, '--auth')
-        cmd.insert(2, f"{TR_USER}:{TR_PASS}")
+        cmd.extend(['--auth', f"{TR_USER}:{TR_PASS}"])
+        
+    cmd.extend(['--torrent', str(torrent_id), '--remove'])
+
     try:
         logger.info(f"--> [TORRENT] Removing ID {torrent_id} from client...")
         result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -153,7 +146,6 @@ def remove_torrent_from_client(torrent_id):
 
 def load_masks(filepath):
     masks = []
-    # filepath is already a Path object from config setup
     if filepath.exists():
         with filepath.open('r', encoding='utf-8') as f:
             for line in f:
@@ -162,7 +154,7 @@ def load_masks(filepath):
                     try: 
                         masks.append(re.compile(stripped))
                     except re.error as e:
-                        logger.warning(f"Invalid mask pattern '{stripped}' in {filepath.name}: {e}")
+                        logger.warning(f"Invalid mask pattern '{stripped}': {e}")
     return masks
 
 def check_match(name, patterns):
@@ -176,7 +168,6 @@ def sanitize(name):
     return re.sub(r'[?"*<>]', '', name).strip()
 
 def get_unique_path(path):
-    # path is expected to be a Path object
     p = path
     if not p.exists(): return p
     counter = 1
@@ -186,22 +177,17 @@ def get_unique_path(path):
         counter += 1
 
 def clean_search(name):
-    # Get stem and replace separators
     stem = Path(name).stem
     n = stem.replace('.', ' ').replace('_', ' ').strip()
-    
-    # Store a base version for fallback (just basic cleanup)
     base_cleaned = n
     
-    # Fix: Require space before year to avoid breaking titles like "1917"
-    # By stripping before this step, we ensure "1917 2019" remains "1917"
+    # Защита года: удаляем все ПОСЛЕ года, но не сам год
     n = re.sub(r'\s(19|20)\d{2}\b.*', '', n)
     
-    # Expanded quality and technical tags
-    quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub|itunes|amzn|nf|dsnp|hmax|repack|proper|internal'
+    # Дополнительная очистка тегов качества
+    quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub'
     n = re.sub(r'(?i)\b(' + quality_tags + r')\b.*', '', n)
     
-    # Use STOP_WORDS from config/file
     if STOP_WORDS:
         pattern_str = '|'.join(re.escape(w) for w in STOP_WORDS)
         n = re.sub(r'(?i)\b(' + pattern_str + r')\b.*', '', n)
@@ -209,15 +195,13 @@ def clean_search(name):
     n = re.sub(r'\s\d+$', '', n)
     result = n.strip(' -()[]')
     
-    # Safety: If cleaning was too aggressive and result is too short, 
-    # but the base version was longer, return the base version.
+    # Если очистка стерла всё (например, фильм "1917"), возвращаем базовую версию
     if len(result) < 2 and len(base_cleaned) >= 2:
         return base_cleaned.strip(' -()[]')
         
     return result
 
-# --- API FUNCTIONS (KP, TMDB, TVDB) --- 
-# (Код API функций оставлен без изменений для краткости, так как замечаний не было)
+# --- API FUNCTIONS ---
 def check_kp(query):
     if not KP_API_KEY or "YOUR_" in KP_API_KEY: return None
     logger.info(f"--> [API:KP] Searching Kinopoisk for: '{query}'")
@@ -319,7 +303,6 @@ def construct_filename(meta, original_file_path):
     return final_base
 
 def safe_transfer_file(src_path, dest_path):
-    # Ensure dest_path is a Path object
     dest_path = Path(dest_path)
     logger.info(f"--> [COPY] Starting copy: {src_path.name} -> {dest_path}")
     try:
@@ -342,9 +325,7 @@ def safe_transfer_file(src_path, dest_path):
                 return True 
         else:
             logger.error(f"--> [COPY] CRITICAL SIZE MISMATCH! Source: {s_size}, Dest: {d_size}")
-            logger.error("--> [COPY] The destination file is likely corrupted. Deleting destination file to prevent issues.")
-            if dest_path.exists(): 
-                dest_path.unlink()
+            if dest_path.exists(): dest_path.unlink()
             return False
             
     except Exception as e:
@@ -370,8 +351,19 @@ def process_folder_content(src_folder, dest_folder, meta):
             else: nf = f.name
             target = dest_folder / nf
             final = get_unique_path(target)
-            if safe_transfer_file(f, final): cnt += 1
-            else: errors += 1
+            
+            if safe_transfer_file(f, final): 
+                cnt += 1
+                # === ОБРАБОТКА СУБТИТРОВ ===
+                for sub_ext in SUBTITLE_EXTS:
+                    sub_src = f.with_suffix(sub_ext)
+                    if sub_src.exists():
+                        sub_target = final.with_suffix(sub_ext)
+                        safe_transfer_file(sub_src, sub_target)
+                # ===========================
+            else: 
+                errors += 1
+                
     logger.info(f"--> [FOLDER] Processed {cnt} files. Errors: {errors}.")
     if cnt > 0 and errors == 0:
         try:
@@ -476,34 +468,35 @@ def process_torrent(path):
         else: fname = p.name
         final = get_unique_path(dest_root / fname)
         if safe_transfer_file(p, final):
+            # Субтитры для одиночного файла
+            for sub_ext in SUBTITLE_EXTS:
+                sub_src = p.with_suffix(sub_ext)
+                if sub_src.exists():
+                    sub_target = final.with_suffix(sub_ext)
+                    safe_transfer_file(sub_src, sub_target)
+
             icon = "🎬" if m_v == 'movie' else "📺"
             send_telegram(f"{icon} <b>Готово</b>\n{final.name}")
             success = True
 
-    # 4. REMOVE TORRENT
     if success:
         tr_id = os.environ.get('TR_TORRENT_ID')
         if tr_id:
             logger.info(f"--> [TORRENT] Cleaning up torrent ID: {tr_id}")
             remove_torrent_from_client(tr_id)
         else:
-            # FIX: Более понятное сообщение (Issue process_torrent.py:442)
-            logger.info("--> [TORRENT] Environment variable TR_TORRENT_ID not found.")
-            logger.info("--> [TORRENT] If you are running this manually, torrent removal is skipped.")
-            logger.info("--> [TORRENT] If run by Transmission, check settings to ensure it passes environment variables.")
+            logger.info("--> [TORRENT] TR_TORRENT_ID not found. Skipping client removal.")
             
     logger.info("[DONE] Processing finished.")
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        # sys.argv[1] is a string, process_torrent converts it to Path
         process_torrent(sys.argv[1])
     else:
         tr_dir = os.environ.get('TR_TORRENT_DIR')
         tr_name = os.environ.get('TR_TORRENT_NAME')
         if tr_dir and tr_name:
             try:
-                # Use pathlib to join paths
                 full_path = Path(tr_dir) / tr_name
                 process_torrent(full_path)
             except Exception as e:
