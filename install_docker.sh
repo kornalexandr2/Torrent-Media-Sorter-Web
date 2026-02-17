@@ -5,6 +5,15 @@
 
 set -e
 
+# Функция для запуска команд с sudo, если оно есть и мы не root
+run_cmd() {
+    if [ "$EUID" -ne 0 ] && [ -x "$(command -v sudo)" ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
 echo "--------------------------------------------------------"
 echo "  🐳 Torrent Media Sorter - Docker Installer"
 echo "--------------------------------------------------------"
@@ -27,9 +36,9 @@ fi
 if ! [ -x "$(command -v lsof)" ]; then
     echo "📦 Установка lsof..."
     if [ -x "$(command -v apt-get)" ]; then
-        sudo apt-get update -qq && sudo apt-get install -y lsof -qq
+        run_cmd apt-get update -qq && run_cmd apt-get install -y lsof -qq
     elif [ -x "$(command -v yum)" ]; then
-        sudo yum install -y lsof
+        run_cmd yum install -y lsof
     fi
 fi
 

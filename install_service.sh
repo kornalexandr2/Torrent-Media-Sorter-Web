@@ -5,21 +5,25 @@
 
 set -e
 
-if [ "$EUID" -ne 0 ]; then
-  echo "❌ Пожалуйста, запустите этот скрипт с правами root (sudo bash install_service.sh)"
-  exit 1
-fi
+# Функция для запуска команд с sudo, если оно есть и мы не root
+run_cmd() {
+    if [ "$EUID" -ne 0 ] && [ -x "$(command -v sudo)" ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
 
 echo "--------------------------------------------------------"
 echo "  ⚙️ Torrent Media Sorter - Service Installer"
-echo "--------------------------------------------------------"
+--------------------------------------------------------"
 
 INSTALL_DIR="/opt/torrent-media-sorter-web"
 REPO_URL="https://github.com/kornalexandr2/Torrent-Media-Sorter-Web.git"
 SERVICE_NAME="torrent-media-sorter-web"
 
 # 0. Проверка существующей установки
-if systemctl list-units --full -all | grep -Fq "$SERVICE_NAME.service"; then
+if [ -x "$(command -v systemctl)" ] && systemctl list-units --full -all | grep -Fq "$SERVICE_NAME.service"; then
     echo "⚠️  Служба $SERVICE_NAME уже установлена."
     read -p "Вы хотите обновить её? (Служба будет остановлена) [y/N]: " UPDATE_CHOICE < /dev/tty
     if [[ ! "$UPDATE_CHOICE" =~ ^[Yy]$ ]]; then
@@ -27,15 +31,15 @@ if systemctl list-units --full -all | grep -Fq "$SERVICE_NAME.service"; then
         exit 0
     fi
     echo "🛑 Остановка службы..."
-    systemctl stop "$SERVICE_NAME" || true
+    run_cmd systemctl stop "$SERVICE_NAME" || true
 fi
 
 # 1. Установка зависимостей
 echo "📦 Установка системных зависимостей (git, python3-venv, lsof)..."
 if [ -x "$(command -v apt-get)" ]; then
-    apt-get update -qq && apt-get install -y git python3-venv python3-pip lsof -qq
+    run_cmd apt-get update -qq && run_cmd apt-get install -y git python3-venv python3-pip lsof -qq
 elif [ -x "$(command -v yum)" ]; then
-    yum install -y git python3 lsof
+    run_cmd yum install -y git python3 lsof
 fi
 
 # 2. Выбор порта с проверкой
@@ -59,38 +63,38 @@ done
 
 # 3. Подготовка директории
 echo "📂 Подготовка директории $INSTALL_DIR..."
-mkdir -p "$INSTALL_DIR"
+run_cmd mkdir -p "$INSTALL_DIR"
 
 # Копирование файлов (если запущен из репозитория) или клонирование
 if [ -f "requirements.txt" ]; then
     echo "   Копирование файлов из текущей директории..."
-    cp -r ./* "$INSTALL_DIR/"
+    run_cmd cp -r ./* "$INSTALL_DIR/"
 elif [ -d "$INSTALL_DIR/.git" ]; then
     echo "   Папка существует. Обновление репозитория (git pull)..."
     cd "$INSTALL_DIR"
-    git pull
+    run_cmd git pull
     cd - > /dev/null
 else
     echo "   Клонирование репозитория..."
-    git clone "$REPO_URL" "$INSTALL_DIR"
+    run_cmd git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
 # 4. Настройка Python окружения
 echo "🐍 Создание виртуального окружения..."
 cd "$INSTALL_DIR"
-python3 -m venv venv
-./venv/bin/pip install -r requirements.txt --quiet
+run_cmd python3 -m venv venv
+run_cmd ./venv/bin/pip install -r requirements.txt --quiet
 
 # 5. Настройка прав доступа
 REAL_USER=${SUDO_USER:-$(whoami)}
 echo "👤 Назначение владельца: $REAL_USER"
-chown -R "$REAL_USER:$REAL_USER" "$INSTALL_DIR"
+run_cmd chown -R "$REAL_USER:$REAL_USER" "$INSTALL_DIR"
 
 # 6. Создание Systemd службы
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 echo "🔧 Создание файла службы $SERVICE_FILE..."
 
-cat <<EOF > $SERVICE_FILE
+cat <<EOF | run_cmd tee $SERVICE_FILE > /dev/null
 [Unit]
 Description=Torrent Media Sorter Web Service
 After=network.target
@@ -109,9 +113,9 @@ EOF
 
 # 7. Запуск
 echo "🚀 Запуск службы..."
-systemctl daemon-reload
-systemctl enable "$SERVICE_NAME"
-systemctl restart "$SERVICE_NAME"
+run_cmd systemctl daemon-reload
+run_cmd systemctl enable "$SERVICE_NAME"
+run_cmd systemctl restart "$SERVICE_NAME"
 
 echo "--------------------------------------------------------"
 echo "✅ Установка завершена!"

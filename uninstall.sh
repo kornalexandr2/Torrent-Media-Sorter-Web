@@ -5,6 +5,15 @@
 
 set -e
 
+# Функция для запуска команд с sudo, если оно есть и мы не root
+run_cmd() {
+    if [ "$EUID" -ne 0 ] && [ -x "$(command -v sudo)" ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
 echo "--------------------------------------------------------"
 echo "  🗑️ Torrent Media Sorter - Деинсталляция"
 echo "--------------------------------------------------------"
@@ -24,12 +33,12 @@ fi
 
 # 3. Остановка и удаление Systemd службы
 SERVICE_NAME="torrent-media-sorter-web"
-if systemctl list-units --full -all | grep -Fq "$SERVICE_NAME.service"; then
+if [ -x "$(command -v systemctl)" ] && systemctl list-units --full -all | grep -Fq "$SERVICE_NAME.service"; then
     echo "⚙️ Удаление Systemd службы..."
-    sudo systemctl stop "$SERVICE_NAME" || true
-    sudo systemctl disable "$SERVICE_NAME" || true
-    sudo rm -f "/etc/systemd/system/$SERVICE_NAME.service"
-    sudo systemctl daemon-reload
+    run_cmd systemctl stop "$SERVICE_NAME" || true
+    run_cmd systemctl disable "$SERVICE_NAME" || true
+    run_cmd rm -f "/etc/systemd/system/$SERVICE_NAME.service"
+    run_cmd systemctl daemon-reload
 fi
 
 # 4. Удаление файлов (с подтверждением)
@@ -42,13 +51,12 @@ read -p "Удалить каталог $INSTALL_DIR? [y/N]: " RM_FILES < /dev/tt
 if [[ "$RM_FILES" =~ ^[Yy]$ ]]; then
     echo "📂 Удаление файлов..."
     if [ -d "$INSTALL_DIR" ]; then
-        sudo rm -rf "$INSTALL_DIR"
+        run_cmd rm -rf "$INSTALL_DIR"
     fi
     # Если мы запускали скрипт из текущей папки и она не /opt/...
     if [[ "$(pwd)" != "$INSTALL_DIR" ]] && [[ -f "process_torrent.py" ]]; then
         read -p "Удалить файлы проекта из текущей папки ($(pwd))? [y/N]: " RM_CUR < /dev/tty
         if [[ "$RM_CUR" =~ ^[Yy]$ ]]; then
-            # Удаляем только файлы проекта, чтобы не снести лишнее
             rm -rf app config venv docker-compose.yml Dockerfile install*.sh readme.md requirements.txt process_torrent.py models.py database.py main.py schemas.py 2>/dev/null || true
         fi
     fi
