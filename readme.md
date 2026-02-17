@@ -18,16 +18,24 @@
 
 ## 🛠 Установка
 
-### Вариант 1: Docker
-Автоматическая установка. Скрипт скачает файлы, настроит окружение и запустит контейнер.
+Выберите наиболее подходящий вариант установки. Все варианты выполняются одной командой:
+
+### 1. Docker
+Автоматическая установка и запуск в Docker. Скрипт проверит зависимости и настроит порт.
 ```bash
 curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_docker.sh | bash
 ```
 
-### 2. Запуск через Docker Compose
-Скачайте `docker-compose.yml` и запустите:
+### 2. Docker Compose
+Установка через Docker Compose с использованием интерактивного мастера.
 ```bash
-docker-compose up -d --build
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install.sh | bash
+```
+
+### 3. В качестве службы (Systemd)
+Установка приложения напрямую в систему Linux как фоновый процесс.
+```bash
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_service.sh | sudo bash
 ```
 
 ---
