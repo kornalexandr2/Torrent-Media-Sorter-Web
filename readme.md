@@ -23,22 +23,22 @@
 ### 1. Docker
 Автоматическая установка и запуск в Docker. Скрипт проверит зависимости и настроит порт.
 ```bash
-sudo mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
-curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_docker.sh | sudo bash
+mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_docker.sh | bash
 ```
 
 ### 2. Docker Compose
 Установка через Docker Compose с использованием интерактивного мастера.
 ```bash
-sudo mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
-curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install.sh | sudo bash
+mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install.sh | bash
 ```
 
 ### 3. В качестве службы (Systemd)
 Установка приложения напрямую в систему Linux как фоновый процесс.
 ```bash
-sudo mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
-curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_service.sh | sudo bash
+mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_service.sh | bash
 ```
 
 ---
@@ -86,7 +86,7 @@ curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-W
 ## 🗑 Удаление
 Если вы хотите полностью удалить проект, выполните команду ниже:
 ```bash
-curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/uninstall.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/uninstall.sh | bash
 ```
 Скрипт спросит подтверждение на удаление Docker-контейнеров, Systemd-служб и файлов приложения.
 
