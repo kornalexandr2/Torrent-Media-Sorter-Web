@@ -12,7 +12,7 @@ logger = logging.getLogger('TorrentMediaSorter')
 async def webhook(payload: WebhookPayload, background_tasks: BackgroundTasks):
     logger.info(f"--> [WEBHOOK] Received: {payload.torrent_name}")
     
-    # Run in background to not block the torrent client
+    # Запуск в фоне, чтобы не блокировать клиент
     background_tasks.add_task(run_processing, payload)
     
     return {"status": "queued"}
