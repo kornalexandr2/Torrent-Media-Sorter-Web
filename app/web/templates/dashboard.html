@@ -1,0 +1,102 @@
+{% extends "layout.html" %}
+
+{% block title %}Dashboard - Torrent Media Sorter{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
+    <div class="flex gap-4">
+        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition" onclick="location.reload()">
+            🔄 Refresh
+        </button>
+    </div>
+</div>
+
+<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead class="bg-gray-50 text-gray-600 text-sm uppercase font-semibold">
+                <tr>
+                    <th class="px-6 py-4">Created At</th>
+                    <th class="px-6 py-4">Torrent Name</th>
+                    <th class="px-6 py-4">Detected As</th>
+                    <th class="px-6 py-4">Status</th>
+                    <th class="px-6 py-4 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 text-gray-700">
+                {% for d in downloads %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-6 py-4 text-xs text-gray-500 font-mono">
+                        {{ d.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+                    </td>
+                    <td class="px-6 py-4">
+                        <div class="font-medium text-gray-900 max-w-md truncate" title="{{ d.torrent_name }}">
+                            {{ d.torrent_name }}
+                        </div>
+                        <div class="text-xs text-gray-400 font-mono truncate max-w-md">
+                            {{ d.original_path }}
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        {% if d.detected_title %}
+                            <div class="flex items-center gap-2">
+                                <span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 border border-slate-200 uppercase font-bold">
+                                    {{ d.metadata_source }}
+                                </span>
+                                <span class="font-semibold text-gray-800">{{ d.detected_title }}</span>
+                                <span class="text-gray-400 text-sm">({{ d.detected_year }})</span>
+                            </div>
+                            <div class="text-xs text-blue-500 font-medium">
+                                {{ d.media_type }}
+                            </div>
+                        {% else %}
+                            <span class="text-gray-400 italic text-sm">Not resolved</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4">
+                        {% set status_class = {
+                            'SUCCESS': 'bg-green-100 text-green-700 border-green-200',
+                            'PENDING': 'bg-blue-100 text-blue-700 border-blue-200',
+                            'ERROR': 'bg-red-100 text-red-700 border-red-200',
+                            'MANUAL_REQUIRED': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+                            'REVERTED': 'bg-gray-100 text-gray-600 border-gray-200'
+                        } %}
+                        <span class="px-3 py-1 rounded-full text-xs font-bold border {{ status_class.get(d.status.name, 'bg-gray-100 text-gray-600 border-gray-200') }}">
+                            {{ d.status.name }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex justify-end gap-2">
+                            <form hx-post="/retry/{{ d.id }}" hx-target="body" hx-push-url="false" class="inline">
+                                <button type="submit" class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Retry">
+                                    <span class="text-lg">🔄</span>
+                                </button>
+                            </form>
+                            <button hx-get="/fix-match/{{ d.id }}" hx-target="#modal-placeholder" class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Fix Match">
+                                <span class="text-lg">🛠</span>
+                            </button>
+                            {% if d.status.name == 'SUCCESS' %}
+                            <form hx-post="/undo/{{ d.id }}" hx-target="body" hx-push-url="false" class="inline" hx-confirm="Are you sure you want to undo this transfer?">
+                                <button type="submit" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Undo">
+                                    <span class="text-lg">↩️</span>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-400">
+                        No downloads found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="modal-placeholder"></div>
+{% endblock %}

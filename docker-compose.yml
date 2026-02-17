@@ -1,0 +1,14 @@
+services:
+  media-sorter:
+    build: .
+    container_name: media_sorter
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config  # БД и конфиги здесь
+      - /mnt/media:/mnt/media # Доступ к медиа (должен совпадать с торрент-клиентом)
+    environment:
+      - TZ=Europe/Moscow
+      - PUID=1000
+      - PGID=1000
