@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Функция для запуска команд с sudo, если оно есть и мы не root
+run_cmd() {
+    if [ "$EUID" -ne 0 ] && [ -x "$(command -v sudo)" ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
 echo "--------------------------------------------------------"
 echo "  📦 Torrent Media Sorter - Мастер установки"
 echo "--------------------------------------------------------"
@@ -13,5 +22,5 @@ CHOICE=${CHOICE:-1}
 if [ "$CHOICE" -eq "1" ]; then
     bash install_docker.sh
 else
-    sudo bash install_service.sh
+    run_cmd bash install_service.sh
 fi
