@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # --- Torrent Media Sorter (Systemd Service Installer) ---
-# Устанавливает приложение как системную службу в /opt/torrentmediasorter
+# Устанавливает приложение как системную службу в /opt/torrent-media-sorter-web
 
 set -e
 
@@ -31,14 +31,33 @@ if systemctl list-units --full -all | grep -Fq "$SERVICE_NAME.service"; then
 fi
 
 # 1. Установка зависимостей
-echo "📦 Установка системных зависимостей (git, python3-venv)..."
+echo "📦 Установка системных зависимостей (git, python3-venv, lsof)..."
 if [ -x "$(command -v apt-get)" ]; then
-    apt-get update -qq && apt-get install -y git python3-venv python3-pip -qq
+    apt-get update -qq && apt-get install -y git python3-venv python3-pip lsof -qq
 elif [ -x "$(command -v yum)" ]; then
-    yum install -y git python3
+    yum install -y git python3 lsof
 fi
 
-# 2. Подготовка директории
+# 2. Выбор порта с проверкой
+DEFAULT_PORT=7887
+APP_PORT=$DEFAULT_PORT
+
+while true; do
+    read -p "Введите порт для веб-интерфейса [$APP_PORT]: " INPUT_PORT
+    APP_PORT=${INPUT_PORT:-$APP_PORT}
+
+    echo "🔍 Проверка порта $APP_PORT..."
+    if ! lsof -Pi :$APP_PORT -sTCP:LISTEN -t >/dev/null ; then
+        echo "✅ Порт $APP_PORT свободен."
+        break
+    else
+        echo "❌ Ошибка: Порт $APP_PORT уже занят другим приложением!"
+        APP_PORT=""
+        read -p "Пожалуйста, введите другой порт: " APP_PORT
+    fi
+done
+
+# 3. Подготовка директории
 echo "📂 Подготовка директории $INSTALL_DIR..."
 mkdir -p "$INSTALL_DIR"
 
@@ -56,18 +75,18 @@ else
     git clone "$REPO_URL" "$INSTALL_DIR"
 fi
 
-# 3. Настройка Python окружения
+# 4. Настройка Python окружения
 echo "🐍 Создание виртуального окружения..."
 cd "$INSTALL_DIR"
 python3 -m venv venv
 ./venv/bin/pip install -r requirements.txt --quiet
 
-# 4. Настройка прав доступа
+# 5. Настройка прав доступа
 REAL_USER=${SUDO_USER:-$(whoami)}
 echo "👤 Назначение владельца: $REAL_USER"
 chown -R "$REAL_USER:$REAL_USER" "$INSTALL_DIR"
 
-# 5. Создание Systemd службы
+# 6. Создание Systemd службы
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
 echo "🔧 Создание файла службы $SERVICE_FILE..."
 
@@ -80,7 +99,7 @@ After=network.target
 User=$REAL_USER
 Group=$REAL_USER
 WorkingDirectory=$INSTALL_DIR
-ExecStart=$INSTALL_DIR/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8080
+ExecStart=$INSTALL_DIR/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $APP_PORT
 Restart=always
 Environment=PATH=$INSTALL_DIR/venv/bin:/usr/bin:/usr/local/bin
 
@@ -88,7 +107,7 @@ Environment=PATH=$INSTALL_DIR/venv/bin:/usr/bin:/usr/local/bin
 WantedBy=multi-user.target
 EOF
 
-# 6. Запуск
+# 7. Запуск
 echo "🚀 Запуск службы..."
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
@@ -105,7 +124,7 @@ else
     WAN_IP="Не удалось определить"
 fi
 
-echo "🏠 Адрес интерфейса: http://${LAN_IP:-localhost}:8080"
+echo "🏠 Адрес интерфейса: http://${LAN_IP:-localhost}:$APP_PORT"
 echo "📂 Папка установки:  $INSTALL_DIR"
 echo "⚙️ Управление:       sudo systemctl [start|stop|restart] $SERVICE_NAME"
 echo "📝 Логи:             journalctl -u $SERVICE_NAME -f"

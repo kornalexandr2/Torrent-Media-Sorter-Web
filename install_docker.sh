@@ -35,17 +35,24 @@ if [ ! -f "Dockerfile" ]; then
     (git clone https://github.com/kornalexandr2/Torrent-Media-Sorter-Web.git torrent-media-sorter && cd torrent-media-sorter)
 fi
 
-# 2. Выбор порта
-DEFAULT_PORT=8080
-read -p "Введите порт для веб-интерфейса [$DEFAULT_PORT]: " APP_PORT
-APP_PORT=${APP_PORT:-$DEFAULT_PORT}
+# 2. Выбор порта с проверкой
+DEFAULT_PORT=7887
+APP_PORT=$DEFAULT_PORT
 
-# 3. Проверка порта на занятость
-echo "🔍 Проверка порта $APP_PORT..."
-if lsof -Pi :$APP_PORT -sTCP:LISTEN -t >/dev/null ; then
-    echo "❌ Ошибка: Порт $APP_PORT уже занят другим приложением!"
-    exit 1
-fi
+while true; do
+    read -p "Введите порт для веб-интерфейса [$APP_PORT]: " INPUT_PORT
+    APP_PORT=${INPUT_PORT:-$APP_PORT}
+
+    echo "🔍 Проверка порта $APP_PORT..."
+    if ! lsof -Pi :$APP_PORT -sTCP:LISTEN -t >/dev/null ; then
+        echo "✅ Порт $APP_PORT свободен."
+        break
+    else
+        echo "❌ Ошибка: Порт $APP_PORT уже занят другим приложением!"
+        APP_PORT="" # Сброс для следующей итерации, если пользователь нажмет Enter
+        read -p "Пожалуйста, введите другой порт: " APP_PORT
+    fi
+done
 
 # 4. Создание папок
 mkdir -p config
