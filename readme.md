@@ -18,23 +18,26 @@
 
 ## 🛠 Установка
 
-Выберите наиболее подходящий вариант установки. Все варианты выполняются одной командой:
+Рекомендуется устанавливать приложение в каталог `/opt/torrent-media-sorter-web`. Выберите наиболее подходящий вариант установки:
 
 ### 1. Docker
 Автоматическая установка и запуск в Docker. Скрипт проверит зависимости и настроит порт.
 ```bash
-curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_docker.sh | bash
+sudo mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_docker.sh | sudo bash
 ```
 
 ### 2. Docker Compose
 Установка через Docker Compose с использованием интерактивного мастера.
 ```bash
-curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install.sh | bash
+sudo mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install.sh | sudo bash
 ```
 
 ### 3. В качестве службы (Systemd)
 Установка приложения напрямую в систему Linux как фоновый процесс.
 ```bash
+sudo mkdir -p /opt/torrent-media-sorter-web && cd /opt/torrent-media-sorter-web
 curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_service.sh | sudo bash
 ```
 
@@ -52,15 +55,17 @@ curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-W
 ---
 
 ## ⚙️ Настройка торрент-клиента
-Чтобы Torrent Media Sorter узнал о завершении закачки, настройте вызов вебхука.
+Чтобы Torrent Media Sorter узнал о завершении закачки, настройте вызов вебхука. **Все необходимые команды и параметры для настройки вашего торрент-клиента будут доступны в веб-интерфейсе приложения после установки.**
 
-### Transmission
+### Краткие примеры:
+
+#### Transmission
 В настройках Transmission (или в скрипте `script-torrent-done-filename`):
-`"script-torrent-done-filename": "/path/to/process_torrent.py"`
+`"script-torrent-done-filename": "/opt/torrent-media-sorter-web/process_torrent.py"`
 
-### qBittorrent
+#### qBittorrent
 В настройках "Выполнить внешнюю программу при завершении":
-`python3 /path/to/process_torrent.py "%N" "%D" "%I"`
+`python3 /opt/torrent-media-sorter-web/process_torrent.py "%N" "%D" "%I"`
 
 ---
 
