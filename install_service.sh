@@ -21,7 +21,7 @@ SERVICE_NAME="torrent-media-sorter-web"
 # 0. Проверка существующей установки
 if systemctl list-units --full -all | grep -Fq "$SERVICE_NAME.service"; then
     echo "⚠️  Служба $SERVICE_NAME уже установлена."
-    read -p "Вы хотите обновить её? (Служба будет остановлена) [y/N]: " UPDATE_CHOICE
+    read -p "Вы хотите обновить её? (Служба будет остановлена) [y/N]: " UPDATE_CHOICE < /dev/tty
     if [[ ! "$UPDATE_CHOICE" =~ ^[Yy]$ ]]; then
         echo "❌ Установка отменена."
         exit 0
@@ -43,7 +43,7 @@ DEFAULT_PORT=7887
 APP_PORT=$DEFAULT_PORT
 
 while true; do
-    read -p "Введите порт для веб-интерфейса [$APP_PORT]: " INPUT_PORT
+    read -p "Введите порт для веб-интерфейса [$APP_PORT]: " INPUT_PORT < /dev/tty
     APP_PORT=${INPUT_PORT:-$APP_PORT}
 
     echo "🔍 Проверка порта $APP_PORT..."
@@ -53,7 +53,7 @@ while true; do
     else
         echo "❌ Ошибка: Порт $APP_PORT уже занят другим приложением!"
         APP_PORT=""
-        read -p "Пожалуйста, введите другой порт: " APP_PORT
+        read -p "Пожалуйста, введите другой порт: " APP_PORT < /dev/tty
     fi
 done
 

@@ -23,6 +23,16 @@ if ! [ -x "$(command -v curl)" ]; then
   echo "⚠️  Предупреждение: утилита curl не найдена. Определение внешнего IP будет пропущено."
 fi
 
+# Проверка наличия lsof (нужен для проверки портов)
+if ! [ -x "$(command -v lsof)" ]; then
+    echo "📦 Установка lsof..."
+    if [ -x "$(command -v apt-get)" ]; then
+        sudo apt-get update -qq && sudo apt-get install -y lsof -qq
+    elif [ -x "$(command -v yum)" ]; then
+        sudo yum install -y lsof
+    fi
+fi
+
 # Проверка наличия файлов проекта (для запуска через curl)
 if [ ! -f "Dockerfile" ]; then
     echo "📥 Файлы проекта не найдены. Скачивание из GitHub..."
@@ -40,7 +50,7 @@ DEFAULT_PORT=7887
 APP_PORT=$DEFAULT_PORT
 
 while true; do
-    read -p "Введите порт для веб-интерфейса [$APP_PORT]: " INPUT_PORT
+    read -p "Введите порт для веб-интерфейса [$APP_PORT]: " INPUT_PORT < /dev/tty
     APP_PORT=${INPUT_PORT:-$APP_PORT}
 
     echo "🔍 Проверка порта $APP_PORT..."
@@ -49,8 +59,8 @@ while true; do
         break
     else
         echo "❌ Ошибка: Порт $APP_PORT уже занят другим приложением!"
-        APP_PORT="" # Сброс для следующей итерации, если пользователь нажмет Enter
-        read -p "Пожалуйста, введите другой порт: " APP_PORT
+        APP_PORT="" # Сброс для следующей итерации
+        read -p "Пожалуйста, введите другой порт: " APP_PORT < /dev/tty
     fi
 done
 
