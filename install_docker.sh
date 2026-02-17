@@ -23,6 +23,18 @@ if ! [ -x "$(command -v curl)" ]; then
   echo "⚠️  Предупреждение: утилита curl не найдена. Определение внешнего IP будет пропущено."
 fi
 
+# Проверка наличия файлов проекта (для запуска через curl)
+if [ ! -f "Dockerfile" ]; then
+    echo "📥 Файлы проекта не найдены. Скачивание из GitHub..."
+    if ! [ -x "$(command -v git)" ]; then
+        echo "❌ Ошибка: git не установлен! Установите git для загрузки файлов."
+        exit 1
+    fi
+    # Пытаемся клонировать в текущую папку, если не выйдет - создаем подпапку
+    git clone https://github.com/kornalexandr2/Torrent-Media-Sorter-Web.git . 2>/dev/null || \
+    (git clone https://github.com/kornalexandr2/Torrent-Media-Sorter-Web.git torrent-media-sorter && cd torrent-media-sorter)
+fi
+
 # 2. Выбор порта
 DEFAULT_PORT=8080
 read -p "Введите порт для веб-интерфейса [$DEFAULT_PORT]: " APP_PORT

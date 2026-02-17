@@ -19,9 +19,9 @@
 ## 🛠 Установка (Обычная)
 
 ### Вариант 1: Docker (Рекомендуется)
-Самый простой и надежный способ. Запустите установщик:
+Самый простой и надежный способ. Выполните команду в папке, где хотите развернуть проект:
 ```bash
-bash install_docker.sh
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/install_docker.sh | bash
 ```
 
 ### 2. Запуск через Docker Compose
