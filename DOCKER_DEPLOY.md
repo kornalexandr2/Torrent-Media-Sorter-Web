@@ -13,42 +13,23 @@ mkdir -p config
 ```
 
 ## 3. Конфигурационный файл (docker-compose.yml)
-Создайте файл `docker-compose.yml` со следующим содержимым. Этот пример включает и Sorter, и Transmission в одной сети.
+Создайте файл `docker-compose.yml` со следующим содержимым.
 
 ```yaml
-version: '3.8'
-
 services:
-  # Наш сервис сортировщика
   media-sorter:
-    image: alexandrkisa/media-sorter:latest # Пример названия образа
+    build: .
     container_name: media_sorter
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
       - ./config:/app/config           # База данных и настройки
-      - /mnt/media:/mnt/media         # Общая папка с фильмами (должна совпадать с клиентом)
+      - /mnt/media:/mnt/media          # Общая папка с фильмами (должна совпадать с клиентом)
     environment:
       - TZ=Europe/Moscow
-      - PUID=1000 # ID вашего пользователя в Linux
-      - PGID=1000
-      - CONFIG_PATH=/app/config/config.ini
-
-  # Торрент-клиент (Пример: Transmission)
-  transmission:
-    image: lscr.io/linuxserver/transmission:latest
-    container_name: transmission
-    restart: unless-stopped
-    ports:
-      - "9091:9091" # Веб-интерфейс
-    environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/Moscow
-    volumes:
-      - ./transmission-config:/config
-      - /mnt/media:/downloads # Загрузки попадают в ту же папку, что видит Sorter
 ```
 
 ## 4. Запуск
@@ -58,16 +39,22 @@ docker-compose up -d --build
 ```
 
 ## 5. Настройка Webhook в торрент-клиенте
-Так как оба сервиса находятся в одной Docker-сети, клиент может обращаться к Sorter по имени сервиса.
+Поскольку Sorter и торрент-клиент могут находиться в разных контейнерах или на разных серверах, взаимодействие происходит через HTTP-запросы.
 
 ### Transmission
-В настройках Transmission (или в скрипте `script-torrent-done-filename`):
-`"script-torrent-done-filename": "/app/process_torrent.py"`
-(Убедитесь, что файл `process_torrent.py` доступен внутри контейнера Transmission).
+В настройках Transmission включите вызов скрипта по завершении. Создайте скрипт (например, `/config/notify.sh`) внутри контейнера клиента:
+```bash
+#!/bin/bash
+curl -X POST http://IP_ВАШЕГО_СЕРВЕРА:8080/api/webhook \
+     -H "Content-Type: application/json" \
+     -d "{\"torrent_name\": \"$TR_TORRENT_NAME\", \"torrent_dir\": \"$TR_TORRENT_DIR\"}"
+```
 
 ### qBittorrent
-В настройках "Выполнить внешнюю программу при завершении":
-`python3 /app/process_torrent.py "%N" "%D" "%I"`
+В настройках "Выполнить внешнюю программу при завершении" используйте cURL:
+```bash
+curl -X POST http://IP_ВАШЕГО_СЕРВЕРА:8080/api/webhook -H "Content-Type: application/json" -d '{"torrent_name": "%N", "torrent_dir": "%D"}'
+```
 
 ## 6. Важные замечания по путям
 Чтобы всё работало корректно:
