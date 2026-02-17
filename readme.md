@@ -83,5 +83,14 @@ curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-W
 
 ---
 
+## 🗑 Удаление
+Если вы хотите полностью удалить проект, выполните команду ниже:
+```bash
+curl -sSL https://raw.githubusercontent.com/kornalexandr2/Torrent-Media-Sorter-Web/main/uninstall.sh | sudo bash
+```
+Скрипт спросит подтверждение на удаление Docker-контейнеров, Systemd-служб и файлов приложения.
+
+---
+
 ## 📝 Лицензия
 Данный проект распространяется под лицензией MIT. Разрабатывался как замена сложным и тяжелым решениям (Radarr/Sonarr) для тех, кто любит простоту и контроль.
