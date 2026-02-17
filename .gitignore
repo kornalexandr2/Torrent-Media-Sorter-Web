@@ -1,22 +1,7 @@
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-.venv/
 venv/
-ENV/
-env/
-.env
-.pytest_cache/
-
-# Databases & Logs
-*.db
 *.log
+*.db
+.env
 config/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Config (optional: ignore if you want users to use default config.ini)
-# config.ini
+DEVELOPER.md
