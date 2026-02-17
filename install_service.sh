@@ -16,7 +16,7 @@ run_cmd() {
 
 echo "--------------------------------------------------------"
 echo "  ⚙️ Torrent Media Sorter - Service Installer"
---------------------------------------------------------"
+echo "--------------------------------------------------------"
 
 INSTALL_DIR="/opt/torrent-media-sorter-web"
 REPO_URL="https://github.com/kornalexandr2/Torrent-Media-Sorter-Web.git"
