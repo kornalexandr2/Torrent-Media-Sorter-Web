@@ -7,37 +7,26 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
-        // Следим за вставкой модальных окон
         document.addEventListener('DOMContentLoaded', function() {
-            const modalRoot = document.getElementById('modal-root');
-            if (modalRoot) {
-                const observer = new MutationObserver(function(mutations) {
-                    console.log('DOM Mutation in #modal-root! Children count:', modalRoot.children.length);
-                    if (modalRoot.children.length > 0) {
-                        console.log('Modal is now IN the DOM');
-                    }
-                });
-                observer.observe(modalRoot, { childList: true });
-                console.log('Modal observer initialized');
-            } else {
-                console.error('CRITICAL: #modal-root not found in DOM!');
-            }
+            htmx.config.globalViewTransitions = true;
+            console.log('HTMX Configured');
         });
 
         document.addEventListener('htmx:beforeRequest', function(evt) {
             console.log('HTMX Request:', evt.detail.path || (evt.detail.requestConfig ? evt.detail.requestConfig.path : 'unknown'));
         });
+        
         document.addEventListener('htmx:afterOnLoad', function(evt) {
             console.log('HTMX Loaded. Status:', evt.detail.xhr.status);
             const target = evt.detail.target;
             if (target) {
                 console.log('HTMX Target found:', target.id || target.tagName);
-            } else {
-                console.error('HTMX Error: Target element is NULL or UNDEFINED');
+                console.log('Target HTML before:', target.innerHTML.length);
             }
         });
-        document.addEventListener('htmx:responseError', function(evt) {
-            console.error('HTMX Response Error:', evt.detail.xhr.status);
+
+        document.addEventListener('htmx:load', function(evt) {
+            console.log('HTMX Content Processed/Loaded into:', evt.detail.elt.id || evt.detail.elt.tagName);
         });
     </script>
     <style>
@@ -45,6 +34,7 @@
         .htmx-request .htmx-indicator { display: flex; }
         .htmx-request.htmx-indicator { display: flex; }
         .htmx-request .htmx-indicator-hide { opacity: 0; }
+        #modal-root:empty { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -73,12 +63,13 @@
 
     <main class="container mx-auto px-4 py-8">
         {% block content %}{% endblock %}
+        
+        <!-- Контейнер для модальных окон внутри main -->
+        <div id="modal-root"></div>
     </main>
 
     <footer class="text-center py-8 text-gray-500 text-sm">
         Torrent Media Sorter Web &copy; 2026
     </footer>
-
-    <div id="modal-root"></div>
 </body>
 </html>
