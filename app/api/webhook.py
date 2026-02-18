@@ -95,3 +95,52 @@ async def test_telegram(
             return f'<div class="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">❌ Ошибка TG: {resp.text}</div>'
     except Exception as e:
         return f'<div class="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">❌ Ошибка: {str(e)}</div>'
+
+@router.post("/test/client", response_class=HTMLResponse)
+async def test_client(
+    client_type: str = Form(..., alias="CLIENT.type"),
+    host: str = Form(..., alias="CLIENT.host"),
+    port: str = Form(..., alias="CLIENT.port"),
+    username: str = Form(None, alias="CLIENT.username"),
+    password: str = Form(None, alias="CLIENT.password")
+):
+    try:
+        if client_type == "transmission":
+            auth = None
+            if username and password:
+                import base64
+                encoded_auth = base64.b64encode(f"{username}:{password}".encode()).decode()
+                auth = {"Authorization": f"Base {encoded_auth}"}
+            
+            async with httpx.AsyncClient() as client:
+                # First try to get session ID
+                resp = await client.post(f"http://{host}:{port}/transmission/rpc", headers=auth, timeout=5.0)
+                if resp.status_code == 409:
+                    session_id = resp.headers.get("X-Transmission-Session-Id")
+                    headers = auth or {}
+                    headers["X-Transmission-Session-Id"] = session_id
+                    resp = await client.post(
+                        f"http://{host}:{port}/transmission/rpc", 
+                        json={"method": "session-get"}, 
+                        headers=headers, 
+                        timeout=5.0
+                    )
+                
+                if resp.status_code == 200:
+                    return '<p class="text-xs text-green-600">✅ Transmission: Соединение успешно</p>'
+                return f'<p class="text-xs text-red-500">❌ Ошибка {resp.status_code}</p>'
+
+        elif client_type == "qbittorrent":
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    f"http://{host}:{port}/api/v2/auth/login",
+                    data={"username": username, "password": password},
+                    timeout=5.0
+                )
+                if resp.status_code == 200 and "Ok" in resp.text:
+                    return '<p class="text-xs text-green-600">✅ qBittorrent: Авторизация успешна</p>'
+                return f'<p class="text-xs text-red-500">❌ Ошибка {resp.status_code}: {resp.text}</p>'
+        
+        return '<p class="text-xs text-gray-500">Тест не поддерживается для этого клиента</p>'
+    except Exception as e:
+        return f'<p class="text-xs text-red-500">❌ Ошибка: {str(e)}</p>'
