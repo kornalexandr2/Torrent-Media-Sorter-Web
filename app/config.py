@@ -44,7 +44,7 @@ class ConfigManager:
         self.config['RENAMING'] = {
             'mode': 'move',
             'rename_mode': 'ru',
-            'save_original_filename': 'True',
+            'filename_template': '[name_lang] ([year]) ([torrent])',
             'hardlinks': 'False',
             'season_folders': 'True'
         }

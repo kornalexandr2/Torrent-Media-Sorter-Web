@@ -21,27 +21,45 @@ class Renamer:
     def construct_filename(self, meta, original_file_path):
         p = Path(original_file_path)
         orig_name = p.name
-        episode_tag = scanner.get_season_episode(orig_name)
+        episode_tag = scanner.get_season_episode(orig_name) or ""
         
         rename_mode = config_manager.get('RENAMING', 'rename_mode', 'ru').lower()
-        save_original = config_manager.getboolean('RENAMING', 'save_original_filename', True)
+        template = config_manager.get('RENAMING', 'filename_template', '[name_lang] ([year]) ([torrent])').lower()
 
         if rename_mode == 'no_change' or not meta:
             return orig_name
 
         titles = meta.get('titles', {})
-        year = meta.get('year', '')
-        target_title = titles.get(rename_mode) or titles.get('ru') or titles.get('origin') or titles.get('en')
-        if not target_title: target_title = p.stem
+        year = str(meta.get('year', ''))
         
-        clean_title = self.sanitize(target_title)
-        final_base = f"{clean_title} ({year})" if year else clean_title
+        # Resolve names
+        name_lang = titles.get(rename_mode) or titles.get('ru') or titles.get('origin') or titles.get('en') or p.stem
+        name_orig = titles.get('origin') or titles.get('en') or titles.get('ru') or p.stem
+
+        # Map for template replacement
+        mapping = {
+            '[name_lang]': self.sanitize(name_lang),
+            '[name_orig]': self.sanitize(name_orig),
+            '[year]': year,
+            '[torrent]': p.stem,
+            '[tag]': episode_tag
+        }
+
+        # Build result based on template string
+        # Template is a string like "[name_lang] ([year]) - [torrent]"
+        res = template
+        for key, val in mapping.items():
+            res = res.replace(key, val)
+
+        # Cleanup resulting string (double spaces, trailing dashes etc)
+        res = re.sub(r'\s+', ' ', res).strip(' -')
+        # Ensure parentheses aren't empty like "()"
+        res = res.replace('()', '').replace('( )', '').replace('[]', '').replace('[ ]', '').strip()
         
-        if episode_tag:
-            final_base = f"{final_base} {episode_tag}"
-        
-        if save_original:
-            return f"{final_base} ({p.stem}){p.suffix}"
-        return f"{final_base}{p.suffix}"
+        # If it's a series and we don't have a tag in template, append it
+        if episode_tag and '[tag]' not in template:
+            res = f"{res} {episode_tag}"
+
+        return f"{res}{p.suffix}"
 
 renamer = Renamer()

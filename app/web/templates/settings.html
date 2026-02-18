@@ -54,6 +54,19 @@
                             </select>
                         </div>
                         <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для прочего (Other)</label>
+                            <input type="text" name="PATHS.other_folder" value="{{ config.PATHS.other_folder or '' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RENAMING BLOCK -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Настройки переименования</div>
+                <div class="p-6 space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">Язык переименования</label>
                             <select name="RENAMING.rename_mode" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                                 <option value="ru" {% if config.RENAMING.rename_mode == 'ru' %}selected{% endif %}>Русский</option>
@@ -62,14 +75,41 @@
                                 <option value="no_change" {% if config.RENAMING.rename_mode == 'no_change' %}selected{% endif %}>Не изменять</option>
                             </select>
                         </div>
-                        <div class="flex items-center gap-2 pt-2">
-                            <input type="checkbox" name="RENAMING.save_original_filename" value="True" {% if config.RENAMING.save_original_filename == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
-                            <label class="text-sm text-gray-700">Сохранять оригинал в скобках</label>
-                        </div>
-                        <div class="flex items-center gap-2 pt-2">
+                        <div class="flex items-center gap-2 pt-6">
                             <input type="checkbox" name="RENAMING.season_folders" value="True" {% if config.RENAMING.season_folders == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
-                            <label class="text-sm text-gray-700">Папки сезонов</label>
+                            <label class="text-sm text-gray-700 font-semibold">Создавать папки сезонов для сериалов</label>
                         </div>
+                    </div>
+
+                    <!-- CONSTRUCTOR -->
+                    <div class="space-y-4">
+                        <label class="block text-sm font-bold text-gray-800">Конструктор имени файла</label>
+                        
+                        <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
+                            <div>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Доступные блоки (нажмите для добавления)</p>
+                                <div id="available-blocks" class="flex flex-wrap gap-2">
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[name_lang]">Имя (Язык)</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[name_orig]">Имя (Оригинал)</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[year]">Год</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[torrent]">Имя торрента</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[tag]">S01E01</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag="(">(</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag=")">)</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag="-">-</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag=" ">[Пробел]</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ваш шаблон (перетаскивайте для сортировки)</p>
+                                <div id="template-constructor" class="flex flex-wrap gap-2 p-3 bg-white border-2 border-dashed border-slate-300 rounded-xl min-h-[50px] items-center">
+                                    <!-- Blocks will be here -->
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" name="RENAMING.filename_template" id="filename_template_input" value="{{ config.RENAMING.filename_template or '[name_lang] ([year]) ([torrent])' }}">
+                        <p class="text-[10px] text-gray-400">Пример результата: <span id="template-preview" class="font-mono text-blue-600">...</span></p>
                     </div>
                 </div>
             </div>
@@ -270,7 +310,95 @@
         activeBtn.classList.add('active', 'border-blue-600', 'text-blue-600');
     }
 
-    // Initialize Sortable
+    // --- Filename Constructor Logic ---
+    const constructorArea = document.getElementById('template-constructor');
+    const filenameInput = document.getElementById('filename_template_input');
+    const previewEl = document.getElementById('template-preview');
+
+    function updateTemplate() {
+        const blocks = constructorArea.querySelectorAll('.constructor-block');
+        const template = Array.from(blocks).map(b => b.getAttribute('data-tag')).join('');
+        filenameInput.value = template;
+        
+        // Simple preview logic
+        const demoValues = {
+            '[name_lang]': 'Интерстеллар',
+            '[name_orig]': 'Interstellar',
+            '[year]': '2014',
+            '[torrent]': 'Interstellar.2014.1080p.BluRay',
+            '[tag]': 'S01E01',
+            ' ': ' '
+        };
+        let preview = template;
+        for (const [tag, val] of Object.entries(demoValues)) {
+            preview = preview.replaceAll(tag, val);
+        }
+        previewEl.innerText = preview || 'Пусто (будет оригинальное имя)';
+    }
+
+    function createBlock(tag, label) {
+        const div = document.createElement('div');
+        div.className = 'constructor-block px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-bold flex items-center gap-2 cursor-move select-none group';
+        div.setAttribute('data-tag', tag);
+        div.innerHTML = `
+            <span>${label}</span>
+            <button type="button" class="text-blue-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+        `;
+        div.querySelector('button').onclick = (e) => {
+            e.stopPropagation();
+            div.remove();
+            updateTemplate();
+        };
+        return div;
+    }
+
+    // Add by click
+    document.querySelectorAll('#available-blocks .constructor-item').forEach(btn => {
+        btn.onclick = () => {
+            const tag = btn.getAttribute('data-tag');
+            const label = btn.innerText;
+            constructorArea.appendChild(createBlock(tag, label));
+            updateTemplate();
+        };
+    });
+
+    // Load initial template
+    function initConstructor() {
+        const currentTemplate = filenameInput.value;
+        const available = {};
+        document.querySelectorAll('#available-blocks .constructor-item').forEach(b => {
+            available[b.getAttribute('data-tag')] = b.innerText;
+        });
+
+        // Parse template (simple tag-based parser)
+        const tags = Object.keys(available).sort((a,b) => b.length - a.length); // Longest first
+        let workingStr = currentTemplate;
+        
+        while (workingStr.length > 0) {
+            let found = false;
+            for (const tag of tags) {
+                if (workingStr.startsWith(tag)) {
+                    constructorArea.appendChild(createBlock(tag, available[tag]));
+                    workingStr = workingStr.substring(tag.length);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                // If character is not a known tag, just skip it or handle as space
+                workingStr = workingStr.substring(1);
+            }
+        }
+        updateTemplate();
+    }
+
+    // Drag and Drop for Constructor
+    Sortable.create(constructorArea, {
+        animation: 150,
+        onEnd: updateTemplate
+    });
+
+    // Initialize Sortable for Priority
     const el = document.getElementById('priority-list');
     Sortable.create(el, {
         animation: 150,
@@ -281,28 +409,10 @@
         }
     });
 
-    // Client Logic
-    const clientData = {
-        'transmission': { 'port': '9091', 'cmd': 'APP_PORT={{ app_port }} {{ base_dir }}/process_torrent.py' },
-        'qbittorrent': { 'port': '8080', 'cmd': 'APP_PORT={{ app_port }} python3 {{ base_dir }}/process_torrent.py "%N" "%D" "%I"' }
-    };
-
-    function onClientChange() {
-        const type = document.getElementById('client_type').value;
-        const portInput = document.getElementById('client_port');
-        const guide = document.getElementById('webhook-guide');
-        if (clientData[type]) {
-            if (!portInput.value) portInput.value = clientData[type].port;
-            guide.classList.remove('hidden');
-            document.getElementById('guide-command').innerText = clientData[type].cmd;
-        } else {
-            guide.classList.add('hidden');
-        }
-    }
-
     window.onload = () => {
         onClientChange();
         showTab('tab-general');
+        initConstructor();
     };
 </script>
 

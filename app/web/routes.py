@@ -357,7 +357,6 @@ async def save_settings(request: Request, user: User = Depends(get_current_user)
     
     # List of expected checkboxes to handle "off" state
     checkboxes = [
-        ('RENAMING', 'save_original_filename'),
         ('RENAMING', 'season_folders'),
         ('API', 'use_kp'),
         ('API', 'use_tmdb'),
