@@ -19,6 +19,7 @@ logger = logging.getLogger('TorrentMediaSorter')
 
 class Processor:
     async def process_torrent(self, db: AsyncSession, torrent_id: str = None, torrent_name: str = None, torrent_dir: str = None, override_meta: dict = None, download_id: int = None):
+        logger.info(f"--> [PROCESSOR] Processing request: {torrent_name} in {torrent_dir}")
         if not torrent_name or not torrent_dir:
             return
 

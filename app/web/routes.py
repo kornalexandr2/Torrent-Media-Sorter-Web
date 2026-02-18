@@ -248,22 +248,36 @@ async def run_manual_scan(request: Request, background_tasks: BackgroundTasks, p
     return f'<button class="px-6 py-2 bg-green-100 text-green-700 font-bold rounded-lg">Сканирование запущено...</button>'
 
 async def perform_manual_scan(scan_path: str):
-    path = Path(scan_path)
+    path = Path(scan_path).resolve()
+    logger.info(f"--> [SCAN] Starting manual scan of: {path}")
+    
+    if not path.exists():
+        logger.error(f"--> [SCAN] Path does not exist: {path}")
+        return
+
     async with AsyncSessionLocal() as db:
-        # If it's a directory, we can scan top-level items
-        if path.is_dir():
-            for item in path.iterdir():
-                # Process only directories or video files
-                if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
-                    await processor.process_torrent(
-                        db,
-                        torrent_name=item.name,
-                        torrent_dir=str(item.parent)
-                    )
-        else:
-            # Single file scan
-            await processor.process_torrent(
-                db,
-                torrent_name=path.name,
-                torrent_dir=str(path.parent)
-            )
+        try:
+            # If it's a directory, we can scan top-level items
+            if path.is_dir():
+                items = list(path.iterdir())
+                logger.info(f"--> [SCAN] Found {len(items)} items in directory")
+                for item in items:
+                    # Process only directories or video files
+                    if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
+                        logger.info(f"--> [SCAN] Processing item: {item.name}")
+                        await processor.process_torrent(
+                            db,
+                            torrent_name=item.name,
+                            torrent_dir=str(item.parent)
+                        )
+            else:
+                # Single file scan
+                logger.info(f"--> [SCAN] Processing single file: {path.name}")
+                await processor.process_torrent(
+                    db,
+                    torrent_name=path.name,
+                    torrent_dir=str(path.parent)
+                )
+            logger.info(f"--> [SCAN] Manual scan completed")
+        except Exception as e:
+            logger.error(f"--> [SCAN] Error during manual scan: {e}", exc_info=True)
