@@ -17,16 +17,73 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(BASE_DIR / "app/web/templates"))
 logger = logging.getLogger('TorrentMediaSorter')
 
-@router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
-    stmt = select(Download).order_by(desc(Download.created_at)).limit(50)
-    result = await db.execute(stmt)
-    downloads = result.scalars().all()
+@router.post("/refresh")
+async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+    from ..core.clients import get_client
+    from ..models import FileMove
+    from sqlalchemy import delete
     
-    return templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "downloads": downloads
-    })
+    # 1. Get default download dir
+    client = get_client()
+    download_dir = ""
+    if client:
+        try:
+            download_dir = await client.get_default_download_dir()
+        except: pass
+    
+    # 2. Get all downloads from DB
+    stmt = select(Download)
+    res = await db.execute(stmt)
+    downloads = res.scalars().all()
+    
+    seen_paths = set()
+    to_delete_ids = []
+    
+    for d in downloads:
+        # 3. Check if path exists
+        if not os.path.exists(d.original_path):
+            logger.info(f"--> [REFRESH] Path not found, marking for deletion: {d.original_path}")
+            to_delete_ids.append(d.id)
+            continue
+            
+        # 4. Check for duplicates
+        if d.original_path in seen_paths:
+            logger.info(f"--> [REFRESH] Duplicate found, marking for deletion: {d.original_path}")
+            to_delete_ids.append(d.id)
+            continue
+        
+        seen_paths.add(d.original_path)
+    
+    # 5. Perform deletion
+    if to_delete_ids:
+        # Delete related file moves first
+        await db.execute(delete(FileMove).where(FileMove.download_id.in_(to_delete_ids)))
+        # Delete downloads
+        await db.execute(delete(Download).where(Download.id.in_(to_delete_ids)))
+        await db.commit()
+        logger.info(f"--> [REFRESH] Deleted {len(to_delete_ids)} orphaned/duplicate records")
+
+    # 6. Scan for new items in download folder if it exists
+    if download_dir and os.path.exists(download_dir):
+        path = Path(download_dir)
+        for item in path.iterdir():
+            if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
+                if str(item) not in seen_paths:
+                    logger.info(f"--> [REFRESH] New item found, adding: {item.name}")
+                    new_dl = Download(
+                        torrent_name=item.name,
+                        original_path=str(item),
+                        status=MediaStatus.PENDING.value
+                    )
+                    db.add(new_dl)
+                    seen_paths.add(str(item))
+        await db.commit()
+
+    if request.headers.get("HX-Request"):
+        # Redirect or refresh via HTMX
+        return Response(headers={"HX-Refresh": "true"})
+    return RedirectResponse(url="/", status_code=303)
+
 
 @router.post("/undo/{download_id}")
 async def undo_download(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):

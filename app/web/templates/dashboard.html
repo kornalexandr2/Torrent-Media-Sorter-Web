@@ -9,8 +9,9 @@
         <button hx-get="/scan" hx-target="#modal-placeholder" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition">
             📂 Сканировать папку
         </button>
-        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition" onclick="location.reload()">
-            🔄 Refresh
+        <button hx-post="/refresh" hx-target="body" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition" hx-indicator="#refresh-spinner">
+            <span id="refresh-spinner" class="htmx-indicator animate-spin inline-block mr-1">⌛</span>
+            🔄 Синхронизировать
         </button>
     </div>
 </div>
