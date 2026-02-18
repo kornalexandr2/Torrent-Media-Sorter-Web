@@ -18,7 +18,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                     <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Дата обнаружения</label>
-                    <p class="text-sm text-gray-700">{{ download.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+                    <p class="text-sm text-gray-700">{% if download.created_at %}{{ download.created_at.strftime('%Y-%m-%d %H:%M:%S') }}{% else %}---{% endif %}</p>
                 </div>
                 <div class="space-y-1">
                     <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Текущий статус</label>

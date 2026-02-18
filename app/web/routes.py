@@ -214,24 +214,31 @@ async def run_retry_task(download_id: int):
 async def download_info(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return Response("Unauthorized", status_code=401)
     await sys_logger.log(3, "USER", f"Просмотр информации об объекте {download_id}")
-    from ..models import FileMove
-    stmt = select(Download).where(Download.id == download_id)
-    res = await db.execute(stmt)
-    download = res.scalar_one_or_none()
     
-    if not download:
-        return "Not found"
+    try:
+        from ..models import FileMove
+        stmt = select(Download).where(Download.id == download_id)
+        res = await db.execute(stmt)
+        download = res.scalar_one_or_none()
         
-    stmt_moves = select(FileMove).where(FileMove.download_id == download_id)
-    res_moves = await db.execute(stmt_moves)
-    moves = res_moves.scalars().all()
-    
-    return templates.TemplateResponse("info_modal.html", {
-        "request": request, 
-        "download": download,
-        "moves": moves,
-        "user": user
-    })
+        if not download:
+            await sys_logger.log(2, "SYSTEM", f"Объект {download_id} не найден в БД")
+            return "Not found"
+            
+        stmt_moves = select(FileMove).where(FileMove.download_id == download_id)
+        res_moves = await db.execute(stmt_moves)
+        moves = res_moves.scalars().all()
+        
+        return templates.TemplateResponse("info_modal.html", {
+            "request": request, 
+            "download": download,
+            "moves": moves,
+            "user": user
+        })
+    except Exception as e:
+        await sys_logger.log(2, "SYSTEM", f"Ошибка в download_info (ID {download_id}): {str(e)}")
+        logger.error(f"--> [INFO] Error: {e}", exc_info=True)
+        return HTMLResponse(content=f"<div class='p-4 text-red-500'>Ошибка при загрузке данных: {str(e)}</div>", status_code=500)
 
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
 async def fix_match_form(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
