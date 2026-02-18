@@ -1,4 +1,4 @@
-<div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+<div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <!-- Header -->
         <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
@@ -9,7 +9,7 @@
                     <p class="text-xs text-gray-500 font-mono truncate max-w-md">{{ download.torrent_name }}</p>
                 </div>
             </div>
-            <button onclick="document.getElementById('modal-container').remove()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">&times;</button>
+            <button onclick="document.getElementById('modal-backdrop').remove()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">&times;</button>
         </div>
 
         <!-- Body (Scrollable) -->
@@ -90,7 +90,7 @@
                     🔄 Повторить
                 </button>
             </form>
-            <button hx-get="/fix-match/{{ download.id }}" hx-target="#modal-placeholder" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition shadow-sm">
+            <button hx-get="/fix-match/{{ download.id }}" hx-target="#modal-root" hx-swap="innerHTML" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition shadow-sm">
                 🛠 Исправить
             </button>
             {% if download.status == 'SUCCESS' %}
@@ -101,7 +101,7 @@
             </form>
             {% endif %}
             <div class="flex-1"></div>
-            <button onclick="document.getElementById('modal-container').remove()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-lg transition">
+            <button onclick="document.getElementById('modal-backdrop').remove()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-lg transition">
                 Закрыть
             </button>
         </div>
