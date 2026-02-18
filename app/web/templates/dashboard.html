@@ -8,13 +8,14 @@
     <div class="flex gap-3">
         <button hx-get="/scan" 
                 hx-target="#modal-placeholder" 
-                class="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95">
+                hx-swap="innerHTML"
+                class="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer">
             <span class="mr-2 pointer-events-none">📂</span> Сканировать
         </button>
         
         <button hx-post="/refresh" 
                 hx-target="body" 
-                class="relative inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 min-w-[160px]"
+                class="relative inline-flex items-center justify-center px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 min-w-[160px] cursor-pointer"
                 hx-indicator="#refresh-indicator">
             <span class="htmx-indicator-hide flex items-center pointer-events-none">
                 <span class="mr-2">🔄</span> Синхронизировать
@@ -94,21 +95,23 @@
                             <div class="flex justify-end gap-2">
                                 <button hx-get="/info/{{ d.id }}" 
                                         hx-target="#modal-placeholder" 
-                                        class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" 
+                                        hx-swap="innerHTML"
+                                        class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" 
                                         title="Информация">
                                     <span class="text-lg pointer-events-none">ℹ️</span>
                                 </button>
                                 
                                 <button hx-post="/retry/{{ d.id }}" 
                                         hx-target="body" 
-                                        class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" 
+                                        class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" 
                                         title="Retry">
                                     <span class="text-lg pointer-events-none">🔄</span>
                                 </button>
 
                                 <button hx-get="/fix-match/{{ d.id }}" 
                                         hx-target="#modal-placeholder" 
-                                        class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" 
+                                        hx-swap="innerHTML"
+                                        class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer" 
                                         title="Fix Match">
                                     <span class="text-lg pointer-events-none">🛠</span>
                                 </button>
@@ -117,7 +120,7 @@
                                 <button hx-post="/undo/{{ d.id }}" 
                                         hx-target="body" 
                                         hx-confirm="Вы уверены, что хотите откатить все операции для этого объекта?"
-                                        class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" 
+                                        class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer" 
                                         title="Undo">
                                     <span class="text-lg pointer-events-none">↩️</span>
                                 </button>
@@ -136,7 +139,7 @@
             </table>
         </div>
     </div>
-</div> <!-- Close downloads-container -->
+</div>
 
 <div id="modal-placeholder"></div>
 {% endblock %}
