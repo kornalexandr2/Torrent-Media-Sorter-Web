@@ -23,9 +23,12 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     result = await db.execute(stmt)
     downloads = result.scalars().all()
     
+    any_pending = any(d.status == MediaStatus.PENDING.value for d in downloads)
+    
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
-        "downloads": downloads
+        "downloads": downloads,
+        "any_pending": any_pending
     })
 
 @router.post("/refresh")
@@ -113,6 +116,9 @@ async def retry_download(download_id: int, request: Request, background_tasks: B
     if download:
         # Check if original path exists
         if os.path.exists(download.original_path):
+            download.status = MediaStatus.PENDING.value
+            await db.commit()
+            
             background_tasks.add_task(run_retry_task, download.id)
             if request.headers.get("HX-Request"):
                 return Response(headers={"HX-Redirect": "/"})
@@ -154,6 +160,14 @@ async def fix_match_apply(
     source_id: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db)
 ):
+    # Set pending status immediately for UI feedback
+    stmt = select(Download).where(Download.id == download_id)
+    res = await db.execute(stmt)
+    download = res.scalar_one_or_none()
+    if download:
+        download.status = MediaStatus.PENDING.value
+        await db.commit()
+
     background_tasks.add_task(run_fix_match_task, download_id, media_type, source, source_id)
     if request.headers.get("HX-Request"):
         return Response(headers={"HX-Redirect": "/"})

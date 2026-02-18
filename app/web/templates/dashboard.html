@@ -29,9 +29,16 @@
     </div>
 </div>
 
-<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
+<div id="downloads-container" 
+     hx-get="/" 
+     hx-trigger="{% if any_pending %}every 5s{% else %}none{% endif %}" 
+     hx-select="#downloads-container" 
+     hx-target="#downloads-container" 
+     hx-swap="outerHTML">
+    
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
             <thead class="bg-gray-50 text-gray-600 text-sm uppercase font-semibold">
                 <tr>
                     <th class="px-6 py-4">Created At</th>
