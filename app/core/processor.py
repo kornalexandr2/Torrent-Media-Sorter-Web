@@ -176,11 +176,20 @@ class Processor:
                 download.status = MediaStatus.SUCCESS.value
                 self._add_log(download, f"Завершено. Файлов: {success_count}")
                 await sys_logger.log(1, "SYSTEM", f"Успешно обработано: {torrent_name}")
+                
+                type_ru = "Фильм"
+                if m_type == 'tv': type_ru = "Сериал"
+                elif m_type == 'game': type_ru = "Игра"
+                elif m_type == 'software': type_ru = "Программа"
+                elif m_type == 'other': type_ru = "Файл"
+
                 try:
                     await notifier.send_telegram({
                         'title': download.detected_title or torrent_name,
                         'year': download.detected_year or '',
-                        'status': 'Готово'
+                        'status': 'Готово',
+                        'type_name': type_ru,
+                        'original_name': torrent_name
                     })
                 except: pass
             else:
