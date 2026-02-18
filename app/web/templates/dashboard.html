@@ -95,6 +95,7 @@
                             <div class="flex justify-end gap-2">
                                 <button hx-get="/info/{{ d.id }}" 
                                         hx-target="#modal-root" 
+                                        hx-swap="innerHTML"
                                         class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" 
                                         title="Информация">
                                     ℹ️
@@ -109,6 +110,7 @@
 
                                 <button hx-get="/fix-match/{{ d.id }}" 
                                         hx-target="#modal-root" 
+                                        hx-swap="innerHTML"
                                         class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" 
                                         title="Fix Match">
                                     🛠

@@ -8,25 +8,30 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            htmx.config.globalViewTransitions = true;
-            console.log('HTMX Configured');
+            console.log('HTMX Initialized. Version:', htmx.version);
         });
 
         document.addEventListener('htmx:beforeRequest', function(evt) {
-            console.log('HTMX Request:', evt.detail.path || (evt.detail.requestConfig ? evt.detail.requestConfig.path : 'unknown'));
+            console.log('HTMX Request Started:', evt.detail.path);
         });
         
         document.addEventListener('htmx:afterOnLoad', function(evt) {
-            console.log('HTMX Loaded. Status:', evt.detail.xhr.status);
-            const target = evt.detail.target;
-            if (target) {
-                console.log('HTMX Target found:', target.id || target.tagName);
-                console.log('Target HTML before:', target.innerHTML.length);
+            console.log('HTMX Response Received. Status:', evt.detail.xhr.status);
+        });
+
+        document.addEventListener('htmx:beforeSwap', function(evt) {
+            console.log('HTMX Preparing to swap content into:', evt.detail.target.id);
+        });
+
+        document.addEventListener('htmx:afterSwap', function(evt) {
+            console.log('HTMX Swap Complete. Content length in target:', evt.detail.target.innerHTML.length);
+            if (evt.detail.target.id === 'modal-root' && evt.detail.target.innerHTML.length > 0) {
+                console.log('MODAL SHOULD BE VISIBLE NOW');
             }
         });
 
         document.addEventListener('htmx:load', function(evt) {
-            console.log('HTMX Content Processed/Loaded into:', evt.detail.elt.id || evt.detail.elt.tagName);
+            console.log('HTMX Node Loaded/Processed:', evt.detail.elt.id || evt.detail.elt.tagName);
         });
     </script>
     <style>
@@ -34,7 +39,14 @@
         .htmx-request .htmx-indicator { display: flex; }
         .htmx-request.htmx-indicator { display: flex; }
         .htmx-request .htmx-indicator-hide { opacity: 0; }
-        #modal-root:empty { display: none; }
+        
+        /* Важно: не используем display: none для родителя модалки */
+        #modal-root {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 9999;
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -63,13 +75,13 @@
 
     <main class="container mx-auto px-4 py-8">
         {% block content %}{% endblock %}
-        
-        <!-- Контейнер для модальных окон внутри main -->
-        <div id="modal-root"></div>
     </main>
 
     <footer class="text-center py-8 text-gray-500 text-sm">
         Torrent Media Sorter Web &copy; 2026
     </footer>
+
+    <!-- Контейнер для модальных окон в самом конце body -->
+    <div id="modal-root"></div>
 </body>
 </html>
