@@ -7,6 +7,7 @@ logger = logging.getLogger('TorrentMediaSorter')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 CONFIG_FILE = os.environ.get("CONFIG_PATH", str(BASE_DIR / 'data' / 'config.ini'))
+SECRET_KEY = os.environ.get("SECRET_KEY", "torrent-sorter-secret-key-12345")
 
 class ConfigManager:
     def __init__(self, config_path):

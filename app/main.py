@@ -28,11 +28,34 @@ async def log_cleanup_task():
             logger.error(f"Error in log cleanup task: {e}")
         await asyncio.sleep(12 * 3600) # Every 12 hours
 
-# Создание таблиц при старте
+from passlib.context import CryptContext
+from sqlalchemy import select
+from .models import Base, User
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Настройка логирования
+...
+# Создание таблиц и начальных данных при старте
 @app.on_event("startup")
 async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Create default admin if not exists
+    async with AsyncSessionLocal() as db:
+        stmt = select(User).where(User.username == "admin")
+        res = await db.execute(stmt)
+        if not res.scalar_one_or_none():
+            admin = User(
+                username="admin",
+                password_hash=pwd_context.hash("adminadmin1"),
+                is_admin=True
+            )
+            db.add(admin)
+            await db.commit()
+            logger.info("Default admin user created")
+
     asyncio.create_task(log_cleanup_task())
 
 # Подключение роутов

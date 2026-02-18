@@ -4,9 +4,22 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
-    <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">Настройки</h1>
-        <p class="text-gray-500 mt-2">Конфигурация путей, API ключей и шаблонов уведомлений.</p>
+    <div class="mb-8 flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Настройки</h1>
+            <p class="text-gray-500 mt-2">Конфигурация путей, API ключей и шаблонов уведомлений.</p>
+        </div>
+        
+        <!-- Quick Account Action -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 w-72">
+            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Безопасность</h4>
+            <form hx-post="/settings/password" hx-target="#password-result" hx-swap="outerHTML" class="space-y-3">
+                <input type="password" name="old_password" placeholder="Старый пароль" required class="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500">
+                <input type="password" name="new_password" placeholder="Новый пароль" required class="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-500">
+                <button type="submit" class="w-full py-1.5 bg-gray-800 hover:bg-black text-white text-[10px] font-bold rounded-lg transition uppercase">Сменить пароль</button>
+                <div id="password-result"></div>
+            </form>
+        </div>
     </div>
 
     <form action="/settings/save" method="POST" class="space-y-6">

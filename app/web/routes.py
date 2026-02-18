@@ -1,16 +1,20 @@
 import os
 import logging
 import shutil
+import uuid
 from pathlib import Path
-from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks
+from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from typing import List, Optional
+from itsdangerous import URLSafeSerializer
+from passlib.context import CryptContext
+
 from ..database import get_db, AsyncSessionLocal
-from ..models import Download, MediaStatus, MediaType
-from ..config import config_manager, BASE_DIR
+from ..models import Download, MediaStatus, MediaType, User
+from ..config import config_manager, BASE_DIR, SECRET_KEY
 from ..core.operations import file_ops
 from ..core.processor import processor
 from ..core.logger import sys_logger
@@ -19,8 +23,61 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(BASE_DIR / "app/web/templates"))
 logger = logging.getLogger('TorrentMediaSorter')
 
+# Auth logic
+serializer = URLSafeSerializer(SECRET_KEY)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
+    session_id = request.cookies.get("session")
+    if not session_id:
+        return None
+    try:
+        username = serializer.loads(session_id)
+        stmt = select(User).where(User.username == username)
+        res = await db.execute(stmt)
+        return res.scalar_one_or_none()
+    except:
+        return None
+
+def auth_required(func):
+    async def wrapper(*args, **kwargs):
+        request = kwargs.get('request')
+        user = await get_current_user(request, kwargs.get('db'))
+        if not user:
+            return RedirectResponse(url="/login", status_code=303)
+        return await func(*args, **kwargs)
+    return wrapper
+
+# Routes
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@router.post("/login")
+async def login(request: Request, username: str = Form(...), password: str = Form(...), db: AsyncSession = Depends(get_db)):
+    stmt = select(User).where(User.username == username)
+    res = await db.execute(stmt)
+    user = res.scalar_one_or_none()
+    
+    if user and pwd_context.verify(password, user.password_hash):
+        await sys_logger.log(3, "USER", f"Пользователь {username} вошел в систему")
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie(key="session", value=serializer.dumps(username), httponly=True)
+        return response
+    
+    await sys_logger.log(2, "USER", f"Неудачная попытка входа: {username}")
+    return templates.TemplateResponse("login.html", {"request": request, "error": "Неверный логин или пароль"})
+
+@router.get("/logout")
+async def logout(request: Request):
+    await sys_logger.log(3, "USER", "Пользователь вышел из системы")
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie("session")
+    return response
+
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+async def dashboard(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
     await sys_logger.log(3, "USER", "Переход на Дашборд")
     stmt = select(Download).order_by(desc(Download.created_at)).limit(50)
     result = await db.execute(stmt)
@@ -35,7 +92,8 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     })
 
 @router.post("/refresh")
-async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
     await sys_logger.log(1, "USER", "Запущена синхронизация дашборда")
     from ..core.clients import get_client
     from ..models import FileMove
@@ -104,7 +162,8 @@ async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)
 
 
 @router.post("/undo/{download_id}")
-async def undo_download(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def undo_download(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
     await sys_logger.log(1, "USER", f"Запрошен откат объекта {download_id}")
     success, msg = await file_ops.undo_download(download_id, db)
     
@@ -113,7 +172,8 @@ async def undo_download(download_id: int, request: Request, db: AsyncSession = D
     return RedirectResponse(url="/", status_code=303)
 
 @router.post("/retry/{download_id}")
-async def retry_download(download_id: int, request: Request, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+async def retry_download(download_id: int, request: Request, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
     await sys_logger.log(1, "USER", f"Запрошен перезапуск объекта {download_id}")
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
@@ -150,7 +210,8 @@ async def run_retry_task(download_id: int):
             )
 
 @router.get("/info/{download_id}", response_class=HTMLResponse)
-async def download_info(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def download_info(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return Response("Unauthorized", status_code=401)
     await sys_logger.log(3, "USER", f"Просмотр информации об объекте {download_id}")
     from ..models import FileMove
     stmt = select(Download).where(Download.id == download_id)
@@ -167,16 +228,18 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
     return templates.TemplateResponse("info_modal.html", {
         "request": request, 
         "download": download,
-        "moves": moves
+        "moves": moves,
+        "user": user
     })
 
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
-async def fix_match_form(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+async def fix_match_form(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return Response("Unauthorized", status_code=401)
     await sys_logger.log(3, "USER", f"Открытие формы исправления сопоставления {download_id}")
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
     download = res.scalar_one_or_none()
-    return templates.TemplateResponse("fix_match_modal.html", {"request": request, "download": download})
+    return templates.TemplateResponse("fix_match_modal.html", {"request": request, "download": download, "user": user})
 
 @router.post("/fix-match/{download_id}")
 async def fix_match_apply(
@@ -186,8 +249,10 @@ async def fix_match_apply(
     media_type: str = Form(...),
     source: str = Form(...),
     source_id: Optional[str] = Form(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
 ):
+    if not user: return Response("Unauthorized", status_code=401)
     await sys_logger.log(1, "USER", f"Применено ручное исправление для {download_id}")
     # Set pending status immediately for UI feedback
     stmt = select(Download).where(Download.id == download_id)
@@ -240,7 +305,8 @@ async def run_fix_match_task(download_id: int, media_type: str, source: str, sou
                 )
 
 @router.get("/settings", response_class=HTMLResponse)
-async def settings(request: Request):
+async def settings(request: Request, user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
     await sys_logger.log(3, "USER", "Переход в настройки")
     sections = config_manager.config.sections()
     config_data = {}
@@ -268,21 +334,24 @@ async def settings(request: Request):
         "masks_movies": read_file(masks_movies_path),
         "masks_series": read_file(masks_series_path),
         "base_dir": str(BASE_DIR),
-        "app_port": os.environ.get("APP_PORT", "7887")
+        "app_port": os.environ.get("APP_PORT", "7887"),
+        "user": user
     })
 
 @router.get("/logs", response_class=HTMLResponse)
-async def view_logs(request: Request, db: AsyncSession = Depends(get_db)):
+async def view_logs(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
     await sys_logger.log(3, "USER", "Просмотр системных логов")
     from ..models import SystemLog
     from sqlalchemy import select, desc
     stmt = select(SystemLog).order_by(desc(SystemLog.timestamp)).limit(200)
     res = await db.execute(stmt)
     logs = res.scalars().all()
-    return templates.TemplateResponse("logs_view.html", {"request": request, "logs": logs})
+    return templates.TemplateResponse("logs_view.html", {"request": request, "logs": logs, "user": user})
 
 @router.post("/settings/save")
-async def save_settings(request: Request):
+async def save_settings(request: Request, user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
     await sys_logger.log(1, "USER", "Сохранение настроек")
     form_data = await request.form()
     
@@ -332,8 +401,28 @@ async def save_settings(request: Request):
         return Response(headers={"HX-Redirect": "/settings"})
     return RedirectResponse(url="/settings", status_code=303)
 
+@router.post("/settings/password")
+async def change_password(
+    request: Request, 
+    old_password: str = Form(...), 
+    new_password: str = Form(...), 
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    if not user: return Response("Unauthorized", status_code=401)
+    
+    if not pwd_context.verify(old_password, user.password_hash):
+        return f'<div class="p-4 bg-red-50 border border-red-100 rounded-xl text-red-700 text-sm">❌ Старый пароль неверен</div>'
+    
+    user.password_hash = pwd_context.hash(new_password)
+    await db.commit()
+    await sys_logger.log(1, "USER", f"Пользователь {user.username} изменил пароль")
+    
+    return f'<div class="p-4 bg-green-50 border border-green-100 rounded-xl text-green-700 text-sm">✅ Пароль успешно изменен</div>'
+
 @router.get("/scan", response_class=HTMLResponse)
-async def scan_form(request: Request):
+async def scan_form(request: Request, user: User = Depends(get_current_user)):
+    if not user: return Response("Unauthorized", status_code=401)
     await sys_logger.log(3, "USER", "Открытие формы сканирования")
     download_dir = config_manager.get('PATHS', 'downloads_folder')
     return f"""
@@ -366,7 +455,8 @@ async def scan_form(request: Request):
     """
 
 @router.post("/scan", response_class=HTMLResponse)
-async def run_manual_scan(request: Request):
+async def run_manual_scan(request: Request, user: User = Depends(get_current_user)):
+    if not user: return Response("Unauthorized", status_code=401)
     await sys_logger.log(1, "USER", "Запущено ручное сканирование папки")
     path = config_manager.get('PATHS', 'downloads_folder')
     if not path or not os.path.exists(path):
@@ -392,7 +482,8 @@ def is_folder_empty_recursive(path: Path):
     return True
 
 @router.get("/scan/perform", response_class=HTMLResponse)
-async def perform_scan_and_return_results(request: Request, db: AsyncSession = Depends(get_db)):
+async def perform_scan_and_return_results(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return Response("Unauthorized", status_code=401)
     scan_path = config_manager.get('PATHS', 'downloads_folder')
     path = Path(scan_path).resolve()
     
@@ -455,7 +546,8 @@ async def perform_scan_and_return_results(request: Request, db: AsyncSession = D
     """
 
 @router.post("/scan/cleanup", response_class=HTMLResponse)
-async def cleanup_folders(request: Request):
+async def cleanup_folders(request: Request, user: User = Depends(get_current_user)):
+    if not user: return Response("Unauthorized", status_code=401)
     form_data = await request.form()
     folders = form_data.getlist("folders")
     await sys_logger.log(1, "USER", f"Удаление пустых папок ({len(folders)} шт)")
