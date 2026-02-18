@@ -7,6 +7,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
+        // Следим за вставкой модальных окон
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalRoot = document.getElementById('modal-root');
+            if (modalRoot) {
+                const observer = new MutationObserver(function(mutations) {
+                    console.log('DOM Mutation in #modal-root! Children count:', modalRoot.children.length);
+                    if (modalRoot.children.length > 0) {
+                        console.log('Modal is now IN the DOM');
+                    }
+                });
+                observer.observe(modalRoot, { childList: true });
+                console.log('Modal observer initialized');
+            } else {
+                console.error('CRITICAL: #modal-root not found in DOM!');
+            }
+        });
+
         document.addEventListener('htmx:beforeRequest', function(evt) {
             console.log('HTMX Request:', evt.detail.path || (evt.detail.requestConfig ? evt.detail.requestConfig.path : 'unknown'));
         });
@@ -14,6 +31,10 @@
             console.log('HTMX Loaded:', evt.detail.xhr.status);
             if (evt.detail.xhr.status === 200) {
                 console.log('Response body length:', evt.detail.xhr.responseText.length);
+                const target = document.querySelector(evt.detail.target.selector);
+                if (!target) {
+                    console.error('HTMX Error: Target element not found:', evt.detail.target.selector);
+                }
             }
         });
         document.addEventListener('htmx:responseError', function(evt) {
