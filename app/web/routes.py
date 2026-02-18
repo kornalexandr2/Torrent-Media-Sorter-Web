@@ -308,32 +308,25 @@ async def save_settings(request: Request):
 
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_form(request: Request):
-    from ..core.clients import get_client
-    client = get_client()
-    default_path = ""
-    if client:
-        try:
-            default_path = await client.get_default_download_dir() or ""
-        except:
-            pass
-            
+    download_dir = config_manager.get('PATHS', 'downloads_folder')
+    
     return f"""
     <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
-            <h3 class="text-xl font-bold mb-4">Ручное сканирование</h3>
-            <form hx-post="/scan" hx-target="#scan-btn" hx-swap="outerHTML">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Путь к папке</label>
-                    <input type="text" name="path" value="{default_path}" placeholder="/mnt/downloads/..." required
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                </div>
+            <h3 class="text-xl font-bold mb-2">Ручное сканирование</h3>
+            <p class="text-xs text-gray-500 mb-4 font-mono">Папка: {download_dir}</p>
+            
+            <form hx-post="/scan">
+                <p class="text-sm text-gray-600 mb-6">
+                    Запустить поиск новых файлов и папок в настроенной директории загрузок?
+                </p>
                 <div class="flex justify-end gap-3">
                     <button type="button" onclick="document.getElementById('modal-container').remove()" 
                             class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition">
                         Отмена
                     </button>
-                    <button type="submit" id="scan-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition">
-                        Запустить сканирование
+                    <button type="submit" id="scan-btn" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition">
+                        Начать поиск
                     </button>
                 </div>
             </form>
@@ -342,15 +335,14 @@ async def scan_form(request: Request):
     """
 
 @router.post("/scan")
-async def run_manual_scan(request: Request, background_tasks: BackgroundTasks, path: str = Form(...)):
-    if not os.path.exists(path):
-        return f'<button class="px-6 py-2 bg-red-100 text-red-700 font-bold rounded-lg w-full">Путь не найден!</button>'
+async def run_manual_scan(request: Request, background_tasks: BackgroundTasks):
+    path = config_manager.get('PATHS', 'downloads_folder')
+    if not path or not os.path.exists(path):
+        return Response(content=f'<script>alert("Папка загрузок не настроена или не существует: {path}"); document.getElementById("modal-container").remove();</script>')
     
     background_tasks.add_task(perform_manual_scan, path)
     
-    # Return a response that closes the modal and refreshes the page via HTMX headers
-    response = Response(status_code=204) # No content
-    response.headers["HX-Trigger"] = "scan-started"
+    response = Response(status_code=204)
     response.headers["HX-Refresh"] = "true"
     return response
 

@@ -144,3 +144,26 @@ async def test_client(
         return '<p class="text-xs text-gray-500">Тест не поддерживается для этого клиента</p>'
     except Exception as e:
         return f'<p class="text-xs text-red-500">❌ Ошибка: {str(e)}</p>'
+
+@router.get("/client/path", response_class=HTMLResponse)
+async def get_client_path():
+    from ..core.clients import get_client
+    from ..config import config_manager
+    client = get_client()
+    if not client:
+        return '<button type="button" disabled class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed">Загрузки (нет клиента)</button>'
+    
+    try:
+        path = await client.get_default_download_dir()
+        if path:
+            # Return a button that uses a simple JS to fill the input
+            return f"""
+            <button type="button" 
+                    onclick="document.getElementById('downloads_folder_input').value = '{path}'"
+                    class="px-4 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-xs font-bold rounded-lg transition">
+                Загрузки {config_manager.get('CLIENT', 'type', '').capitalize()}
+            </button>
+            """
+    except: pass
+    
+    return '<button type="button" disabled class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed">Загрузки (ошибка связи)</button>'

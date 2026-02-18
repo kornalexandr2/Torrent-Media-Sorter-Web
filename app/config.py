@@ -22,6 +22,7 @@ class ConfigManager:
 
     def _create_default(self):
         self.config['PATHS'] = {
+            'downloads_folder': '~/Downloads',
             'movies_folder': '~/media/Movies',
             'series_folder': '~/media/Series',
             'games_folder': '~/media/Games',
@@ -87,6 +88,7 @@ class ConfigManager:
     def validate(self):
         """Check if crucial settings are still using placeholders."""
         paths_to_check = [
+            ('PATHS', 'downloads_folder'),
             ('PATHS', 'movies_folder'),
             ('PATHS', 'series_folder'),
             ('PATHS', 'games_folder'),
