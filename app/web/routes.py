@@ -190,3 +190,58 @@ async def save_settings(request: Request):
     if request.headers.get("HX-Request"):
         return Response(headers={"HX-Redirect": "/settings"})
     return RedirectResponse(url="/settings", status_code=303)
+
+@router.get("/scan", response_class=HTMLResponse)
+async def scan_form(request: Request):
+    return """
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
+            <h3 class="text-xl font-bold mb-4">Ручное сканирование</h3>
+            <form hx-post="/scan" hx-target="#scan-btn" hx-swap="outerHTML">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Путь к папке</label>
+                    <input type="text" name="path" placeholder="/mnt/downloads/..." required
+                           class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex justify-end gap-3">
+                    <button type="button" onclick="document.getElementById('modal').remove()" 
+                            class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition">
+                        Отмена
+                    </button>
+                    <button type="submit" id="scan-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition">
+                        Запустить сканирование
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    """
+
+@router.post("/scan")
+async def run_manual_scan(request: Request, background_tasks: BackgroundTasks, path: str = Form(...)):
+    if not os.path.exists(path):
+        return f'<button class="px-6 py-2 bg-red-100 text-red-700 font-bold rounded-lg">Путь не найден!</button>'
+    
+    background_tasks.add_task(perform_manual_scan, path)
+    return f'<button class="px-6 py-2 bg-green-100 text-green-700 font-bold rounded-lg">Сканирование запущено...</button>'
+
+async def perform_manual_scan(scan_path: str):
+    path = Path(scan_path)
+    async with AsyncSessionLocal() as db:
+        # If it's a directory, we can scan top-level items
+        if path.is_dir():
+            for item in path.iterdir():
+                # Process only directories or video files
+                if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
+                    await processor.process_torrent(
+                        db,
+                        torrent_name=item.name,
+                        torrent_dir=str(item.parent)
+                    )
+        else:
+            # Single file scan
+            await processor.process_torrent(
+                db,
+                torrent_name=path.name,
+                torrent_dir=str(path.parent)
+            )

@@ -6,6 +6,9 @@
 <div class="mb-8 flex justify-between items-center">
     <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
     <div class="flex gap-4">
+        <button hx-get="/scan" hx-target="#modal-placeholder" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition">
+            📂 Сканировать папку
+        </button>
         <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition" onclick="location.reload()">
             🔄 Refresh
         </button>
