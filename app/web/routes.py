@@ -1,5 +1,6 @@
 import os
 import logging
+import shutil
 from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks
 from fastapi.templating import Jinja2Templates
@@ -427,16 +428,27 @@ async def perform_scan_and_return_results(request: Request, db: AsyncSession = D
     """
 
 @router.post("/scan/cleanup", response_class=HTMLResponse)
-async def cleanup_folders(folders: List[str] = Form(...)):
+async def cleanup_folders(request: Request):
+    form_data = await request.form()
+    folders = form_data.getlist("folders")
+    
     deleted = 0
     errors = 0
+    
+    logger.info(f"--> [CLEANUP] Starting cleanup of {len(folders)} folders")
+    
     for folder in folders:
         try:
-            p = Path(folder)
+            p = Path(folder).resolve()
             if p.exists() and p.is_dir():
                 shutil.rmtree(p)
                 deleted += 1
-        except:
+                logger.info(f"--> [CLEANUP] Deleted: {p}")
+            else:
+                logger.warning(f"--> [CLEANUP] Skip (not a dir or missing): {p}")
+                errors += 1
+        except Exception as e:
+            logger.error(f"--> [CLEANUP] Error deleting {folder}: {e}")
             errors += 1
             
     return f"""
