@@ -34,6 +34,7 @@ class Download(Base):
     detected_year: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     metadata_source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     source_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    logs: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     
     file_moves: Mapped[List["FileMove"]] = relationship(back_populates="download", cascade="all, delete-orphan")

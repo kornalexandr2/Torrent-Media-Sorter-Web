@@ -143,6 +143,26 @@ async def run_retry_task(download_id: int):
                 download_id=download.id
             )
 
+@router.get("/info/{download_id}", response_class=HTMLResponse)
+async def download_info(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    from ..models import FileMove
+    stmt = select(Download).where(Download.id == download_id)
+    res = await db.execute(stmt)
+    download = res.scalar_one_or_none()
+    
+    if not download:
+        return "Not found"
+        
+    stmt_moves = select(FileMove).where(FileMove.download_id == download_id)
+    res_moves = await db.execute(stmt_moves)
+    moves = res_moves.scalars().all()
+    
+    return templates.TemplateResponse("info_modal.html", {
+        "request": request, 
+        "download": download,
+        "moves": moves
+    })
+
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
 async def fix_match_form(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
     stmt = select(Download).where(Download.id == download_id)

@@ -92,6 +92,9 @@
                     </td>
                     <td class="px-6 py-4 text-right">
                         <div class="flex justify-end gap-2">
+                            <button hx-get="/info/{{ d.id }}" hx-target="#modal-placeholder" class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Информация">
+                                <span class="text-lg">ℹ️</span>
+                            </button>
                             <form hx-post="/retry/{{ d.id }}" hx-target="body" hx-push-url="false" class="inline">
                                 <button type="submit" class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition" title="Retry">
                                     <span class="text-lg">🔄</span>

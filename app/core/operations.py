@@ -48,6 +48,9 @@ class FileOperations:
         if not download or download.status == MediaStatus.REVERTED.value:
             return False, "Download not found or already reverted"
 
+        from .processor import processor
+        processor._add_log(download, "Запущен откат (Undo)")
+
         stmt_moves = select(FileMove).where(FileMove.download_id == download_id)
         res_moves = await db.execute(stmt_moves)
         moves = res_moves.scalars().all()
@@ -62,10 +65,12 @@ class FileOperations:
                     if dst.exists():
                         if src.exists():
                             logger.warning(f"--> [UNDO] Source path already exists: {src}. Skipping move back.")
+                            processor._add_log(download, f"Откат файла пропущен (оригинал существует): {src.name}")
                         else:
                             src.parent.mkdir(parents=True, exist_ok=True)
                             shutil.move(str(dst), str(src))
                             success_count += 1
+                            processor._add_log(download, f"Файл возвращен: {dst.name} -> {src.name}")
                         
                         # Cleanup empty parent of dst
                         if dst.parent.exists() and not any(dst.parent.iterdir()):
@@ -76,6 +81,7 @@ class FileOperations:
                     if dst.exists():
                         dst.unlink()
                         success_count += 1
+                        processor._add_log(download, f"Файл удален (откат копии): {dst.name}")
                         
                         # Cleanup empty parent of dst
                         if dst.parent.exists() and not any(dst.parent.iterdir()):
@@ -86,6 +92,7 @@ class FileOperations:
                 logger.error(f"--> [UNDO] Error for {move.dst_path}: {e}")
 
         download.status = MediaStatus.REVERTED.value
+        processor._add_log(download, f"Откат завершен. Обработано файлов: {success_count}")
         await db.commit()
         return True, f"Reverted {success_count} files"
 
