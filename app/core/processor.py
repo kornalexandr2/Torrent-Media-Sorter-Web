@@ -44,13 +44,27 @@ class Processor:
             download = None
 
         if not download:
-            # Create initial DB record
-            download = Download(
-                torrent_name=torrent_name,
-                original_path=str(p),
-                status=MediaStatus.PENDING.value
-            )
-            db.add(download)
+            # Check if we already have this path in DB to avoid duplicates
+            stmt = select(Download).where(Download.original_path == str(p))
+            res = await db.execute(stmt)
+            download = res.scalar_one_or_none()
+            
+            if not download:
+                # Create initial DB record
+                download = Download(
+                    torrent_name=torrent_name,
+                    original_path=str(p),
+                    status=MediaStatus.PENDING.value
+                )
+                db.add(download)
+            else:
+                # Update existing record for a fresh start
+                download.status = MediaStatus.PENDING.value
+                download.detected_title = None
+                download.detected_year = None
+                download.metadata_source = None
+                download.source_id = None
+            
             await db.flush()
             
         await db.commit()
