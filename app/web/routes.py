@@ -14,7 +14,7 @@ from ..core.operations import file_ops
 from ..core.processor import processor
 
 router = APIRouter()
-templates = Jinja2Templates(directory=str(BASE_DIR / "web/templates"))
+templates = Jinja2Templates(directory=str(BASE_DIR / "app/web/templates"))
 logger = logging.getLogger('TorrentMediaSorter')
 
 @router.get("/", response_class=HTMLResponse)
@@ -123,8 +123,8 @@ async def settings(request: Request):
         config_data[s] = dict(config_manager.config[s])
     
     # Load masks
-    masks_movies_path = BASE_DIR.parent / 'masks_movies.txt'
-    masks_series_path = BASE_DIR.parent / 'masks_series.txt'
+    masks_movies_path = BASE_DIR / 'masks_movies.txt'
+    masks_series_path = BASE_DIR / 'masks_series.txt'
     
     def read_file(p):
         if os.path.exists(p):
@@ -174,9 +174,9 @@ async def save_settings(request: Request):
     masks_movies = form_data.get('masks_movies', '')
     masks_series = form_data.get('masks_series', '')
     
-    with open(BASE_DIR.parent / 'masks_movies.txt', 'w', encoding='utf-8') as f:
+    with open(BASE_DIR / 'masks_movies.txt', 'w', encoding='utf-8') as f:
         f.write(str(masks_movies))
-    with open(BASE_DIR.parent / 'masks_series.txt', 'w', encoding='utf-8') as f:
+    with open(BASE_DIR / 'masks_series.txt', 'w', encoding='utf-8') as f:
         f.write(str(masks_series))
         
     config_manager.save()
