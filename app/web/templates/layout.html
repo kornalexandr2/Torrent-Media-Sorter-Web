@@ -8,16 +8,16 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
         document.addEventListener('htmx:beforeRequest', function(evt) {
-            console.log('HTMX Request:', evt.detail.path);
+            console.log('HTMX Request:', evt.detail.path || (evt.detail.requestConfig ? evt.detail.requestConfig.path : 'unknown'));
         });
         document.addEventListener('htmx:afterOnLoad', function(evt) {
             console.log('HTMX Loaded:', evt.detail.xhr.status);
+            if (evt.detail.xhr.status === 200) {
+                console.log('Response body length:', evt.detail.xhr.responseText.length);
+            }
         });
         document.addEventListener('htmx:responseError', function(evt) {
             console.error('HTMX Response Error:', evt.detail.xhr.status);
-        });
-        document.addEventListener('htmx:sendError', function(evt) {
-            console.error('HTMX Network Error');
         });
     </script>
     <style>
@@ -28,6 +28,9 @@
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
+    <!-- Контейнер для модальных окон -->
+    <div id="modal-root"></div>
+
     <nav class="bg-slate-800 text-white shadow-lg">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
             <a href="/" class="text-xl font-bold flex items-center gap-2">
@@ -58,8 +61,5 @@
     <footer class="text-center py-8 text-gray-500 text-sm">
         Torrent Media Sorter Web &copy; 2026
     </footer>
-
-    <!-- Контейнер для модальных окон -->
-    <div id="modal-root"></div>
 </body>
 </html>
