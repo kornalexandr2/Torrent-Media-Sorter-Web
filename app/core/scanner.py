@@ -5,9 +5,9 @@ from ..config import config_manager, BASE_DIR
 
 class Scanner:
     def __init__(self):
-        self.stop_words = self._load_simple_list(BASE_DIR / 'stop_words.txt')
-        self.series_masks = self._load_masks(BASE_DIR / 'masks_series.txt')
-        self.movies_masks = self._load_masks(BASE_DIR / 'masks_movies.txt')
+        self.stop_words = self._load_simple_list(BASE_DIR / 'data' / 'stop_words.txt')
+        self.series_masks = self._load_masks(BASE_DIR / 'data' / 'masks_series.txt')
+        self.movies_masks = self._load_masks(BASE_DIR / 'data' / 'masks_movies.txt')
         self.video_exts = tuple(x.strip() for x in config_manager.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
 
     def _load_simple_list(self, filepath):

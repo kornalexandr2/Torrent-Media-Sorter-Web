@@ -6,7 +6,7 @@ from pathlib import Path
 logger = logging.getLogger('TorrentMediaSorter')
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_FILE = os.environ.get("CONFIG_PATH", str(BASE_DIR / 'config.ini'))
+CONFIG_FILE = os.environ.get("CONFIG_PATH", str(BASE_DIR / 'data' / 'config.ini'))
 
 class ConfigManager:
     def __init__(self, config_path):
@@ -29,7 +29,7 @@ class ConfigManager:
             'other_folder': '~/media/Other',
         }
         self.config['LOGGING'] = {
-            'log_file': str(BASE_DIR / 'config' / 'sorter.log'),
+            'log_file': str(BASE_DIR / 'data' / 'sorter.log'),
             'level': 'INFO'
         }
         self.config['SYSTEM'] = {

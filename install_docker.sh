@@ -74,8 +74,8 @@ while true; do
 done
 
 # 4. Создание папок
-mkdir -p config
-echo "✅ Создана папка ./config для базы данных и настроек."
+mkdir -p data
+echo "✅ Создана папка ./data для базы данных и настроек."
 
 # 5. Генерация docker-compose.yml
 cat <<EOF > docker-compose.yml
@@ -87,7 +87,7 @@ services:
     ports:
       - "$APP_PORT:8080"
     volumes:
-      - ./config:/app/config
+      - ./data:/app/data
       - /mnt/media:/mnt/media # Укажите путь к вашей медиатеке
     environment:
       - TZ=Europe/Moscow

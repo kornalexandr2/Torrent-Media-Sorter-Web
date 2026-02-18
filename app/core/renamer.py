@@ -29,8 +29,8 @@ class Renamer:
         if rename_mode == 'no_change' or not meta:
             return orig_name
 
-        titles = meta['titles']
-        year = meta['year']
+        titles = meta.get('titles', {})
+        year = meta.get('year', '')
         target_title = titles.get(rename_mode) or titles.get('ru') or titles.get('origin') or titles.get('en')
         if not target_title: target_title = p.stem
         

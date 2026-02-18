@@ -117,13 +117,16 @@ class Processor:
             
             success_count = 0
             final_dest = dest_root / folder_name
+            logger.info(f"--> [PROCESSOR] Target folder: {final_dest}, Type: {m_type}")
 
             # LOGIC FOR TRANSFER
             if p.is_dir():
-                # For non-video types (Games/Soft), move EVERYTHING
+                # For media types (Movies/TV), filter by video extensions
                 is_media = m_type in ['movie', 'tv']
+                items = list(p.rglob('*'))
+                logger.info(f"--> [PROCESSOR] Scanning directory, found {len(items)} items")
                 
-                for f in list(p.rglob('*')):
+                for f in items:
                     if not f.is_file(): continue
                     
                     # If it's movie/tv, filter by extension. Otherwise, take everything.
@@ -148,9 +151,12 @@ class Processor:
                     else:
                         target = renamer.get_unique_path(final_dest / rel_path)
 
+                    logger.info(f"--> [TRANSFER] Attempting: {f.name} -> {target}")
                     if await file_ops.transfer_file(str(f), str(target), mode):
                         success_count += 1
                         db.add(FileMove(download_id=download.id, src_path=str(f), dst_path=str(target)))
+                    else:
+                        logger.error(f"--> [TRANSFER] Failed to transfer: {f.name}")
             else:
                 # Single file
                 new_fname = renamer.construct_filename(api_data, p) if m_type in ['movie', 'tv'] else p.name
