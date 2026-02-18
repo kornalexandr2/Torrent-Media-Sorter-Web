@@ -378,10 +378,9 @@ async def perform_scan_and_return_results(request: Request, db: AsyncSession = D
                 await processor.process_torrent(db, torrent_name=item.name, torrent_dir=str(item.parent))
                 results["processed"].append(item.name)
         
-        # 2. Find empty folders
-        for item in path.glob('**/'):
-            if item == path: continue
-            if is_folder_empty_recursive(item):
+        # 2. Find empty folders (Top-level only)
+        for item in path.iterdir():
+            if item.is_dir() and is_folder_empty_recursive(item):
                 results["empty_folders"].append(str(item))
                 
     except Exception as e:
