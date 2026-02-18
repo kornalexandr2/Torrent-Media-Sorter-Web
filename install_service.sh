@@ -121,6 +121,18 @@ run_cmd systemctl daemon-reload
 run_cmd systemctl enable "$SERVICE_NAME"
 run_cmd systemctl restart "$SERVICE_NAME"
 
+# 8. Проверка запуска
+echo "🔍 Проверка статуса..."
+sleep 2
+if run_cmd systemctl is-active --quiet "$SERVICE_NAME"; then
+    echo "✅ Служба успешно запущена!"
+else
+    echo "❌ Ошибка: Служба не смогла запуститься."
+    echo "📄 Последние логи (journalctl -u $SERVICE_NAME -n 20):"
+    run_cmd journalctl -u "$SERVICE_NAME" -n 20 --no-pager
+    exit 1
+fi
+
 echo "--------------------------------------------------------"
 echo "✅ Установка завершена!"
 
