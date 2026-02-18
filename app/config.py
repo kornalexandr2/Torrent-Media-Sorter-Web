@@ -35,6 +35,7 @@ class ConfigManager:
         }
         self.config['SYSTEM'] = {
             'video_extensions': '.mkv,.avi,.mp4',
+            'stop_extensions': '.exe,.iso,.msi,.apk,.dmg',
             'web_password': ''
         }
         self.config['RENAMING'] = {

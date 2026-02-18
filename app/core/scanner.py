@@ -8,7 +8,8 @@ class Scanner:
         self.stop_words = self._load_simple_list(BASE_DIR / 'data' / 'stop_words.txt')
         self.series_masks = self._load_masks(BASE_DIR / 'data' / 'masks_series.txt')
         self.movies_masks = self._load_masks(BASE_DIR / 'data' / 'masks_movies.txt')
-        self.video_exts = tuple(x.strip() for x in config_manager.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+        self.video_exts = tuple(x.strip().lower() for x in config_manager.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+        self.stop_exts = tuple(x.strip().lower() for x in config_manager.get('SYSTEM', 'stop_extensions', fallback='.exe,.iso,.msi,.apk,.dmg').split(','))
 
     def _load_simple_list(self, filepath):
         items = []
@@ -49,8 +50,15 @@ class Scanner:
         is_series = False
         target_name = p.name
         
+        # Check for stop extensions first
+        all_files = list(p.rglob('*')) if p.is_dir() else [p]
+        for f in all_files:
+            if f.is_file() and f.suffix.lower() in self.stop_exts:
+                logger.info(f"--> [SCANNER] Stop-extension found: {f.suffix}, skipping auto-detection for media.")
+                return 'unknown', target_name
+
         if p.is_dir():
-            for f in p.rglob('*'):
+            for f in all_files:
                 if f.is_file() and f.suffix.lower() in self.video_exts:
                     if self.get_season_episode(f.name) or any(m.search(f.name) for m in self.series_masks):
                         is_series = True
