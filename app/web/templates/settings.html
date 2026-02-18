@@ -109,7 +109,8 @@
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Приоритет поиска (перетащите для изменения)</label>
                     <div id="priority-list" class="flex flex-wrap gap-2">
-                        {% set priorities = config.API.priority.split(',') %}
+                        {% set priority_val = config.API.priority if config.API.priority else 'kp,tmdb,tvdb' %}
+                        {% set priorities = priority_val.split(',') %}
                         {% for p in priorities %}
                         <div class="priority-item px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm cursor-move flex items-center gap-2" data-id="{{ p }}">
                             <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
@@ -117,7 +118,7 @@
                         </div>
                         {% endfor %}
                     </div>
-                    <input type="hidden" name="API.priority" id="priority-input" value="{{ config.API.priority }}">
+                    <input type="hidden" name="API.priority" id="priority-input" value="{{ priority_val }}">
                 </div>
             </div>
         </div>

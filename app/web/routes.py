@@ -126,6 +126,11 @@ async def settings(request: Request):
     masks_movies_path = BASE_DIR / 'masks_movies.txt'
     masks_series_path = BASE_DIR / 'masks_series.txt'
     
+    # Ensure nested dictionary access for templates
+    formatted_config = {}
+    for section in config_manager.config.sections():
+        formatted_config[section] = dict(config_manager.config[section])
+    
     def read_file(p):
         if os.path.exists(p):
             with open(p, 'r', encoding='utf-8') as f:
@@ -134,7 +139,7 @@ async def settings(request: Request):
         
     return templates.TemplateResponse("settings.html", {
         "request": request,
-        "config": config_data,
+        "config": formatted_config,
         "masks_movies": read_file(masks_movies_path),
         "masks_series": read_file(masks_series_path)
     })
