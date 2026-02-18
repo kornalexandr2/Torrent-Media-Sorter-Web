@@ -65,21 +65,21 @@ done
 echo "📂 Подготовка директории $INSTALL_DIR..."
 run_cmd mkdir -p "$INSTALL_DIR"
 
-# Копирование файлов (если запущен из репозитория) или клонирование
-CURRENT_DIR=$(pwd)
-if [ "$CURRENT_DIR" == "$INSTALL_DIR" ]; then
-    echo "   Вы уже находитесь в директории установки. Пропуск копирования."
-elif [ -f "requirements.txt" ]; then
-    echo "   Копирование файлов из текущей директории..."
-    run_cmd cp -r ./* "$INSTALL_DIR/"
-elif [ -d "$INSTALL_DIR/.git" ]; then
-    echo "   Папка существует. Обновление репозитория (git pull)..."
+# Копирование файлов или клонирование
+if [ -d "$INSTALL_DIR/.git" ]; then
+    echo "   Обновление существующего репозитория..."
     cd "$INSTALL_DIR"
     run_cmd git pull
-    cd - > /dev/null
-else
+elif [ -f "requirements.txt" ] && [ "$(pwd)" != "$INSTALL_DIR" ]; then
+    echo "   Копирование файлов из текущей директории..."
+    run_cmd cp -r ./* "$INSTALL_DIR/"
+elif [ ! -f "$INSTALL_DIR/requirements.txt" ]; then
     echo "   Клонирование репозитория..."
-    run_cmd git clone "$REPO_URL" "$INSTALL_DIR"
+    # Клонируем во временную папку, чтобы избежать ошибки "directory not empty"
+    TMP_DIR=$(mktemp -d)
+    git clone "$REPO_URL" "$TMP_DIR"
+    run_cmd cp -r "$TMP_DIR"/. "$INSTALL_DIR/"
+    rm -rf "$TMP_DIR"
 fi
 
 # 4. Настройка Python окружения
@@ -136,4 +136,4 @@ echo "🏠 Адрес интерфейса: http://${LAN_IP:-localhost}:$APP_POR
 echo "📂 Папка установки:  $INSTALL_DIR"
 echo "⚙️ Управление:       sudo systemctl [start|stop|restart] $SERVICE_NAME"
 echo "📝 Логи:             journalctl -u $SERVICE_NAME -f"
-echo "--------------------------------------------------------"
+--------------------------------------------------------
