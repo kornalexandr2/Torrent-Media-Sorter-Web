@@ -65,8 +65,8 @@
                             'MANUAL_REQUIRED': 'bg-yellow-100 text-yellow-700 border-yellow-200',
                             'REVERTED': 'bg-gray-100 text-gray-600 border-gray-200'
                         } %}
-                        <span class="px-3 py-1 rounded-full text-xs font-bold border {{ status_class.get(d.status.name, 'bg-gray-100 text-gray-600 border-gray-200') }}">
-                            {{ d.status.name }}
+                        <span class="px-3 py-1 rounded-full text-xs font-bold border {{ status_class.get(d.status, 'bg-gray-100 text-gray-600 border-gray-200') }}">
+                            {{ d.status }}
                         </span>
                     </td>
                     <td class="px-6 py-4 text-right">
@@ -79,7 +79,7 @@
                             <button hx-get="/fix-match/{{ d.id }}" hx-target="#modal-placeholder" class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Fix Match">
                                 <span class="text-lg">🛠</span>
                             </button>
-                            {% if d.status.name == 'SUCCESS' %}
+                            {% if d.status == 'SUCCESS' %}
                             <form hx-post="/undo/{{ d.id }}" hx-target="body" hx-push-url="false" class="inline" hx-confirm="Are you sure you want to undo this transfer?">
                                 <button type="submit" class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Undo">
                                     <span class="text-lg">↩️</span>

@@ -43,9 +43,9 @@ class Processor:
                 status=MediaStatus.PENDING
             )
             db.add(download)
+            await db.flush()
             
         await db.commit()
-        await db.refresh(download)
 
         try:
             m_type_raw, target_name = scanner.detect_type(p)
