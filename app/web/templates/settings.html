@@ -5,93 +5,141 @@
 {% block content %}
 <div class="max-w-4xl mx-auto">
     <div class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800">Settings</h1>
-        <p class="text-gray-500 mt-2">Configure paths, API keys, and notification templates.</p>
+        <h1 class="text-3xl font-bold text-gray-800">Настройки</h1>
+        <p class="text-gray-500 mt-2">Конфигурация путей, API ключей и шаблонов уведомлений.</p>
     </div>
 
     <form action="/settings/save" method="POST" class="space-y-6">
         <!-- GENERAL SECTION -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">General Settings</div>
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Общие настройки</div>
             <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Movies Folder</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для фильмов</label>
                     <input type="text" name="PATHS.movies_folder" value="{{ config.PATHS.movies_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Series Folder</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для сериалов</label>
                     <input type="text" name="PATHS.series_folder" value="{{ config.PATHS.series_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Rename Mode</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Язык переименования</label>
                     <select name="RENAMING.rename_mode" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
-                        <option value="ru" {% if config.RENAMING.rename_mode == 'ru' %}selected{% endif %}>Russian</option>
-                        <option value="en" {% if config.RENAMING.rename_mode == 'en' %}selected{% endif %}>English</option>
-                        <option value="origin" {% if config.RENAMING.rename_mode == 'origin' %}selected{% endif %}>Original</option>
-                        <option value="no_change" {% if config.RENAMING.rename_mode == 'no_change' %}selected{% endif %}>Keep Original</option>
+                        <option value="ru" {% if config.RENAMING.rename_mode == 'ru' %}selected{% endif %}>Русский</option>
+                        <option value="en" {% if config.RENAMING.rename_mode == 'en' %}selected{% endif %}>Английский</option>
+                        <option value="origin" {% if config.RENAMING.rename_mode == 'origin' %}selected{% endif %}>Оригинальный</option>
+                        <option value="no_change" {% if config.RENAMING.rename_mode == 'no_change' %}selected{% endif %}>Не изменять</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Transfer Mode</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Режим переноса</label>
                     <select name="RENAMING.mode" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
-                        <option value="move" {% if config.RENAMING.mode == 'move' %}selected{% endif %}>Move (Delete original)</option>
-                        <option value="copy" {% if config.RENAMING.mode == 'copy' %}selected{% endif %}>Copy (Keep original)</option>
-                        <option value="hardlink" {% if config.RENAMING.mode == 'hardlink' %}selected{% endif %}>Hardlink (Recommended)</option>
+                        <option value="move" {% if config.RENAMING.mode == 'move' %}selected{% endif %}>Перемещение (Удалить оригинал)</option>
+                        <option value="copy" {% if config.RENAMING.mode == 'copy' %}selected{% endif %}>Копирование (Оставить оригинал)</option>
+                        <option value="hardlink" {% if config.RENAMING.mode == 'hardlink' %}selected{% endif %}>Hardlink (Рекомендуется)</option>
                     </select>
                 </div>
                 <div class="flex items-center gap-2 pt-6">
                     <input type="checkbox" name="RENAMING.save_original_filename" value="True" {% if config.RENAMING.save_original_filename == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
-                    <label class="text-sm text-gray-700">Save original filename in brackets</label>
+                    <label class="text-sm text-gray-700">Сохранять оригинальное имя в скобках</label>
                 </div>
                 <div class="flex items-center gap-2 pt-6">
                     <input type="checkbox" name="RENAMING.season_folders" value="True" {% if config.RENAMING.season_folders == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
-                    <label class="text-sm text-gray-700">Create Season folders for TV series</label>
+                    <label class="text-sm text-gray-700">Создавать папки сезонов для сериалов</label>
                 </div>
             </div>
         </div>
 
         <!-- API PROVIDERS -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">API Providers</div>
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">API Провайдеры (Метаданные)</div>
             <div class="p-6 space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="space-y-4">
+                    <!-- Kinopoisk -->
+                    <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                         <div class="flex items-center gap-2">
                             <input type="checkbox" name="API.use_kp" value="True" {% if config.API.use_kp == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
                             <label class="font-bold text-gray-700">Kinopoisk</label>
                         </div>
-                        <input type="password" name="API.kp_api_key" value="{{ config.API.kp_api_key }}" placeholder="API Key" class="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-300 rounded-lg">
+                        <input type="password" id="kp_api_key" name="API.kp_api_key" value="{{ config.API.kp_api_key }}" placeholder="API Key" class="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg">
+                        <button type="button" 
+                                hx-post="/api/test/kinopoisk" 
+                                hx-include="[name='API.kp_api_key']"
+                                hx-target="#test-result-kp"
+                                class="w-full py-1.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-200 transition">
+                            Тест
+                        </button>
+                        <div id="test-result-kp"></div>
                     </div>
-                    <div class="space-y-4">
+                    <!-- TMDB -->
+                    <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                         <div class="flex items-center gap-2">
                             <input type="checkbox" name="API.use_tmdb" value="True" {% if config.API.use_tmdb == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
                             <label class="font-bold text-gray-700">TMDB</label>
                         </div>
-                        <input type="password" name="API.tmdb_api_key" value="{{ config.API.tmdb_api_key }}" placeholder="API Key" class="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-300 rounded-lg">
+                        <input type="password" id="tmdb_api_key" name="API.tmdb_api_key" value="{{ config.API.tmdb_api_key }}" placeholder="API Key" class="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg">
+                        <button type="button" 
+                                hx-post="/api/test/tmdb" 
+                                hx-include="[name='API.tmdb_api_key']"
+                                hx-target="#test-result-tmdb"
+                                class="w-full py-1.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-200 transition">
+                            Тест
+                        </button>
+                        <div id="test-result-tmdb"></div>
                     </div>
-                    <div class="space-y-4">
+                    <!-- TVDB -->
+                    <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                         <div class="flex items-center gap-2">
                             <input type="checkbox" name="API.use_tvdb" value="True" {% if config.API.use_tvdb == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
                             <label class="font-bold text-gray-700">TVDB</label>
                         </div>
-                        <input type="password" name="API.tvdb_api_key" value="{{ config.API.tvdb_api_key }}" placeholder="API Key" class="w-full px-3 py-1.5 text-sm bg-gray-50 border border-gray-300 rounded-lg">
+                        <input type="password" id="tvdb_api_key" name="API.tvdb_api_key" value="{{ config.API.tvdb_api_key }}" placeholder="API Key" class="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg">
+                        <button type="button" 
+                                hx-post="/api/test/tvdb" 
+                                hx-include="[name='API.tvdb_api_key']"
+                                hx-target="#test-result-tvdb"
+                                class="w-full py-1.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-200 transition">
+                            Тест
+                        </button>
+                        <div id="test-result-tvdb"></div>
                     </div>
                 </div>
+
+                <!-- Priority with Drag and Drop -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Priority Order (comma separated)</label>
-                    <input type="text" name="API.priority" value="{{ config.API.priority }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Приоритет поиска (перетащите для изменения)</label>
+                    <div id="priority-list" class="flex flex-wrap gap-2">
+                        {% set priorities = config.API.priority.split(',') %}
+                        {% for p in priorities %}
+                        <div class="priority-item px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm cursor-move flex items-center gap-2" data-id="{{ p }}">
+                            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path></svg>
+                            <span class="font-semibold text-gray-700 capitalize">{{ 'Kinopoisk' if p == 'kp' else p.upper() }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="API.priority" id="priority-input" value="{{ config.API.priority }}">
                 </div>
             </div>
         </div>
 
-        <!-- NOTIFICATIONS -->
+        <!-- TELEGRAM -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Telegram Notifications</div>
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Telegram Уведомления</div>
             <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="flex items-center gap-2 md:col-span-2">
-                    <input type="checkbox" name="TELEGRAM.use_telegram" value="True" {% if config.TELEGRAM.use_telegram == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
-                    <label class="font-bold text-gray-700">Enable Telegram Notifications</label>
+                <div class="flex items-center justify-between md:col-span-2">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" name="TELEGRAM.use_telegram" value="True" {% if config.TELEGRAM.use_telegram == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
+                        <label class="font-bold text-gray-700">Включить уведомления</label>
+                    </div>
+                    <button type="button" 
+                            hx-post="/api/test/telegram" 
+                            hx-include="[name='TELEGRAM.bot_token'], [name='TELEGRAM.chat_id']"
+                            hx-target="#test-result-tg"
+                            class="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition">
+                        Отправить тестовое сообщение
+                    </button>
                 </div>
+                <div id="test-result-tg" class="md:col-span-2"></div>
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Bot Token</label>
                     <input type="password" name="TELEGRAM.bot_token" value="{{ config.TELEGRAM.bot_token }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
@@ -100,42 +148,53 @@
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Chat ID</label>
                     <input type="text" name="TELEGRAM.chat_id" value="{{ config.TELEGRAM.chat_id }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                 </div>
-                <div class="md:col-span-2">
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Message Template (Jinja2)</label>
-                    <textarea name="TELEGRAM.template" rows="2" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ config.TELEGRAM.template }}</textarea>
-                    <p class="text-xs text-gray-400 mt-1">Available: {{ title }}, {{ year }}, {{ status }}</p>
+                <div class="md:col-span-2 space-y-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Шаблон сообщения (Jinja2)</label>
+                    <textarea name="TELEGRAM.template" rows="3" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ config.TELEGRAM.template }}</textarea>
+                    
+                    <div class="p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                        <h4 class="text-sm font-bold text-blue-800 mb-1">Справка по шаблону</h4>
+                        <p class="text-xs text-blue-700 mb-2">Пример: 🎬 <b>{% raw %}{{ title }}{% endraw %}</b> ({% raw %}{{ year }}{% endraw %}) готов к просмотру!</p>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div><code class="bg-white px-1 border">{% raw %}{{ title }}{% endraw %}</code> — Название</div>
+                            <div><code class="bg-white px-1 border">{% raw %}{{ year }}{% endraw %}</code> — Год</div>
+                            <div><code class="bg-white px-1 border">{% raw %}{{ status }}{% endraw %}</code> — Статус (OK/Error)</div>
+                            <div><code class="bg-white px-1 border">{% raw %}{{ original_name }}{% endraw %}</code> — Оригинал</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- CLIENT SETTINGS -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Torrent Client Connection</div>
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Торрент-клиент</div>
             <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Client Type</label>
-                    <select name="CLIENT.type" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Тип клиента</label>
+                    <select id="client_type" name="CLIENT.type" onchange="updateDefaultPort()" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
                         <option value="transmission" {% if config.CLIENT.type == 'transmission' %}selected{% endif %}>Transmission</option>
                         <option value="qbittorrent" {% if config.CLIENT.type == 'qbittorrent' %}selected{% endif %}>qBittorrent</option>
-                        <option value="none" {% if config.CLIENT.type == 'none' %}selected{% endif %}>None (Manual/Webhook only)</option>
+                        <option value="deluge" {% if config.CLIENT.type == 'deluge' %}selected{% endif %}>Deluge</option>
+                        <option value="none" {% if config.CLIENT.type == 'none' %}selected{% endif %}>Вручную / Webhook</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Host</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Хост</label>
                         <input type="text" name="CLIENT.host" value="{{ config.CLIENT.host }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Port</label>
-                        <input type="text" name="CLIENT.port" value="{{ config.CLIENT.port }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Порт</label>
+                        <input type="text" id="client_port" name="CLIENT.port" value="{{ config.CLIENT.port }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Логин</label>
                     <input type="text" name="CLIENT.username" value="{{ config.CLIENT.username }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Пароль</label>
                     <input type="password" name="CLIENT.password" value="{{ config.CLIENT.password }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                 </div>
             </div>
@@ -143,23 +202,52 @@
 
         <!-- MASKS -->
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Custom Masks</div>
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Пользовательские маски (Regex)</div>
             <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Series Recognition Masks (Regex)</label>
-                    <textarea name="masks_series" rows="8" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ masks_series }}</textarea>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Маски для сериалов</label>
+                    <textarea name="masks_series" rows="6" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ masks_series }}</textarea>
                 </div>
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">Movies Recognition Masks (Regex)</label>
-                    <textarea name="masks_movies" rows="8" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ masks_movies }}</textarea>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Маски для фильмов</label>
+                    <textarea name="masks_movies" rows="6" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ masks_movies }}</textarea>
                 </div>
             </div>
         </div>
 
         <div class="flex justify-end gap-4 pb-12">
-            <a href="/" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition">Cancel</a>
-            <button type="submit" class="px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition">Save All Settings</button>
+            <a href="/" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition">Отмена</a>
+            <button type="submit" class="px-10 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition">Сохранить всё</button>
         </div>
     </form>
 </div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+    // Drag and Drop for Priority
+    const el = document.getElementById('priority-list');
+    const sortable = Sortable.create(el, {
+        animation: 150,
+        onEnd: function() {
+            const items = el.querySelectorAll('.priority-item');
+            const order = Array.from(items).map(item => item.getAttribute('data-id'));
+            document.getElementById('priority-input').value = order.join(',');
+        }
+    });
+
+    // Default Ports for Clients
+    const ports = {
+        'transmission': '9091',
+        'qbittorrent': '8080',
+        'deluge': '8112'
+    };
+
+    function updateDefaultPort() {
+        const type = document.getElementById('client_type').value;
+        const portInput = document.getElementById('client_port');
+        if (ports[type]) {
+            portInput.value = ports[type];
+        }
+    }
+</script>
 {% endblock %}
