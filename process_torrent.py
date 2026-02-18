@@ -5,7 +5,8 @@ import json
 import urllib.request
 
 def send_to_webhook(torrent_id, torrent_name, torrent_dir):
-    url = "http://localhost:8080/api/webhook"
+    port = os.environ.get("APP_PORT", "7887")
+    url = f"http://localhost:{port}/api/webhook"
     payload = {
         "torrent_id": torrent_id,
         "torrent_name": torrent_name,

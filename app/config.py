@@ -26,7 +26,7 @@ class ConfigManager:
             'series_folder': '~/media/Series',
         }
         self.config['LOGGING'] = {
-            'log_file': 'config/sorter.log',
+            'log_file': str(BASE_DIR / 'config' / 'sorter.log'),
             'level': 'INFO'
         }
         self.config['SYSTEM'] = {

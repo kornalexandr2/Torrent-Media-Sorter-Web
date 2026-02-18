@@ -106,6 +106,7 @@ WorkingDirectory=$INSTALL_DIR
 ExecStart=$INSTALL_DIR/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $APP_PORT
 Restart=always
 Environment=PATH=$INSTALL_DIR/venv/bin:/usr/bin:/usr/local/bin
+Environment=APP_PORT=$APP_PORT
 
 [Install]
 WantedBy=multi-user.target

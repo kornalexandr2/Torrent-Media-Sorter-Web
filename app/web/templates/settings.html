@@ -267,17 +267,17 @@
         'transmission': {
             'port': '9091',
             'guide': 'В Transmission (напр. в Desktop или через JSON-RPC) укажите путь к скрипту в параметре script-torrent-done-filename:',
-            'cmd': '/opt/torrent-media-sorter-web/process_torrent.py'
+            'cmd': 'APP_PORT={{ app_port }} {{ base_dir }}/process_torrent.py'
         },
         'qbittorrent': {
             'port': '8080',
             'guide': 'В qBittorrent: Настройки -> Завершение -> Выполнить внешнюю программу:',
-            'cmd': 'python3 /opt/torrent-media-sorter-web/process_torrent.py "%N" "%D" "%I"'
+            'cmd': 'APP_PORT={{ app_port }} python3 {{ base_dir }}/process_torrent.py "%N" "%D" "%I"'
         },
         'deluge': {
             'port': '8112',
             'guide': 'В Deluge используйте плагин Execute. Добавьте событие Torrent Complete с командой:',
-            'cmd': '/opt/torrent-media-sorter-web/process_torrent.py'
+            'cmd': 'APP_PORT={{ app_port }} {{ base_dir }}/process_torrent.py'
         }
     };
 

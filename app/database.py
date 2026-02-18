@@ -2,9 +2,10 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from .models import Base
+from .config import BASE_DIR
 
 # Path from environment or default to local config directory
-DB_PATH = os.environ.get("DB_PATH", "config/database.db")
+DB_PATH = os.environ.get("DB_PATH", str(BASE_DIR / "config" / "database.db"))
 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
 
 SQLALCHEMY_DATABASE_URL = f"sqlite+aiosqlite:///{DB_PATH}"

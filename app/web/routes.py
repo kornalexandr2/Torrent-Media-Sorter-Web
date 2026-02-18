@@ -141,7 +141,9 @@ async def settings(request: Request):
         "request": request,
         "config": formatted_config,
         "masks_movies": read_file(masks_movies_path),
-        "masks_series": read_file(masks_series_path)
+        "masks_series": read_file(masks_series_path),
+        "base_dir": str(BASE_DIR),
+        "app_port": os.environ.get("APP_PORT", "7887")
     })
 
 @router.post("/settings/save")
