@@ -193,14 +193,23 @@ async def save_settings(request: Request):
 
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_form(request: Request):
-    return """
+    from ..core.clients import get_client
+    client = get_client()
+    default_path = ""
+    if client:
+        try:
+            default_path = await client.get_default_download_dir() or ""
+        except:
+            pass
+            
+    return f"""
     <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
             <h3 class="text-xl font-bold mb-4">Ручное сканирование</h3>
             <form hx-post="/scan" hx-target="#scan-btn" hx-swap="outerHTML">
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Путь к папке</label>
-                    <input type="text" name="path" placeholder="/mnt/downloads/..." required
+                    <input type="text" name="path" value="{default_path}" placeholder="/mnt/downloads/..." required
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="flex justify-end gap-3">

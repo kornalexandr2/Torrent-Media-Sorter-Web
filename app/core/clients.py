@@ -10,6 +10,9 @@ class TorrentClient:
     async def remove_torrent(self, torrent_id: str) -> bool:
         raise NotImplementedError
 
+    async def get_default_download_dir(self) -> Optional[str]:
+        raise NotImplementedError
+
 class TransmissionClient(TorrentClient):
     def __init__(self):
         self.host = config_manager.get('CLIENT', 'host', 'localhost')
@@ -54,6 +57,23 @@ class TransmissionClient(TorrentClient):
                     logger.error(f"--> [TRANSMISSION] Request error: {e}")
                     return False
         return False
+
+    async def get_default_download_dir(self) -> Optional[str]:
+        payload = {"method": "session-get"}
+        async with httpx.AsyncClient() as client:
+            for _ in range(2):
+                headers = await self._get_headers()
+                try:
+                    resp = await client.post(self.url, json=payload, headers=headers, timeout=10.0)
+                    if resp.status_code == 409:
+                        self.session_id = resp.headers.get("X-Transmission-Session-Id", "")
+                        continue
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        return data.get("arguments", {}).get("download-dir")
+                except:
+                    pass
+        return None
 
 class QBittorrentClient(TorrentClient):
     def __init__(self):
@@ -100,6 +120,19 @@ class QBittorrentClient(TorrentClient):
             except Exception as e:
                 logger.error(f"--> [QBITTORRENT] Remove error: {e}")
                 return False
+
+    async def get_default_download_dir(self) -> Optional[str]:
+        async with httpx.AsyncClient() as client:
+            if not self.cookies:
+                if not await self._login(client):
+                    return None
+            try:
+                resp = await client.get(f"{self.base_url}/app/preferences", cookies=self.cookies, timeout=10.0)
+                if resp.status_code == 200:
+                    return resp.json().get("save_path")
+            except:
+                pass
+        return None
 
 def get_client() -> Optional[TorrentClient]:
     c_type = config_manager.get('CLIENT', 'type', 'none').lower()
