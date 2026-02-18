@@ -318,7 +318,7 @@ async def scan_form(request: Request):
             pass
             
     return f"""
-    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
             <h3 class="text-xl font-bold mb-4">Ручное сканирование</h3>
             <form hx-post="/scan" hx-target="#scan-btn" hx-swap="outerHTML">
@@ -328,7 +328,7 @@ async def scan_form(request: Request):
                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="flex justify-end gap-3">
-                    <button type="button" onclick="document.getElementById('modal').remove()" 
+                    <button type="button" onclick="document.getElementById('modal-container').remove()" 
                             class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition">
                         Отмена
                     </button>
@@ -344,10 +344,15 @@ async def scan_form(request: Request):
 @router.post("/scan")
 async def run_manual_scan(request: Request, background_tasks: BackgroundTasks, path: str = Form(...)):
     if not os.path.exists(path):
-        return f'<button class="px-6 py-2 bg-red-100 text-red-700 font-bold rounded-lg">Путь не найден!</button>'
+        return f'<button class="px-6 py-2 bg-red-100 text-red-700 font-bold rounded-lg w-full">Путь не найден!</button>'
     
     background_tasks.add_task(perform_manual_scan, path)
-    return f'<button class="px-6 py-2 bg-green-100 text-green-700 font-bold rounded-lg">Сканирование запущено...</button>'
+    
+    # Return a response that closes the modal and refreshes the page via HTMX headers
+    response = Response(status_code=204) # No content
+    response.headers["HX-Trigger"] = "scan-started"
+    response.headers["HX-Refresh"] = "true"
+    return response
 
 async def perform_manual_scan(scan_path: str):
     path = Path(scan_path).resolve()
