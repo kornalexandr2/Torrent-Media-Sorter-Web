@@ -88,7 +88,8 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db), user: 
     return templates.TemplateResponse("dashboard.html", {
         "request": request,
         "downloads": downloads,
-        "any_pending": any_pending
+        "any_pending": any_pending,
+        "user": user
     })
 
 @router.post("/refresh")
