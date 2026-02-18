@@ -25,7 +25,7 @@ logger = logging.getLogger('TorrentMediaSorter')
 
 # Auth logic
 serializer = URLSafeSerializer(SECRET_KEY)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["sha256_crypt", "md5_crypt"], deprecated="auto")
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
     session_id = request.cookies.get("session")

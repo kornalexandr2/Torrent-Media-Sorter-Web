@@ -20,7 +20,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger('TorrentMediaSorter')
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Используем sha256_crypt как более универсальный и легкий метод для простых систем
+pwd_context = CryptContext(schemes=["sha256_crypt", "md5_crypt"], deprecated="auto")
 
 app = FastAPI(title="Torrent Media Sorter")
 
@@ -46,6 +47,7 @@ async def startup():
             stmt = select(User).where(User.username == "admin")
             res = await db.execute(stmt)
             if not res.scalar_one_or_none():
+                # Принудительно создаем админа с новым методом хеширования
                 admin = User(
                     username="admin",
                     password_hash=pwd_context.hash("adminadmin1"),
@@ -53,9 +55,9 @@ async def startup():
                 )
                 db.add(admin)
                 await db.commit()
-                logger.info("Default admin user created")
+                logger.info("Default admin user 'admin' created with password 'adminadmin1'")
         except Exception as e:
-            logger.error(f"Error creating default user: {e}")
+            logger.error(f"CRITICAL Error creating default user: {e}")
 
     # 3. Start background tasks
     asyncio.create_task(log_cleanup_task())
