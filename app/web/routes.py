@@ -309,74 +309,140 @@ async def save_settings(request: Request):
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_form(request: Request):
     download_dir = config_manager.get('PATHS', 'downloads_folder')
-    
     return f"""
-    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-md p-6 relative">
-            <h3 class="text-xl font-bold mb-2">Ручное сканирование</h3>
-            <p class="text-xs text-gray-500 mb-4 font-mono">Папка: {download_dir}</p>
+    <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
+            <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <h3 class="text-xl font-bold text-gray-800">Ручное сканирование</h3>
+                <button onclick="document.getElementById('modal-container').remove()" class="text-gray-400 hover:text-gray-600">&times;</button>
+            </div>
             
-            <form hx-post="/scan">
-                <p class="text-sm text-gray-600 mb-6">
-                    Запустить поиск новых файлов и папок в настроенной директории загрузок?
-                </p>
-                <div class="flex justify-end gap-3">
-                    <button type="button" onclick="document.getElementById('modal-container').remove()" 
-                            class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition">
-                        Отмена
-                    </button>
-                    <button type="submit" id="scan-btn" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition">
-                        Начать поиск
-                    </button>
+            <div id="scan-content" class="p-6">
+                <p class="text-sm text-gray-600 mb-4 font-mono bg-gray-50 p-2 rounded">Папка: {download_dir}</p>
+                <div class="space-y-4">
+                    <p class="text-sm text-gray-700">Начать поиск новых файлов и поиск пустых папок в настроенной директории?</p>
+                    <div class="flex justify-end gap-3">
+                        <button type="button" onclick="document.getElementById('modal-container').remove()" 
+                                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 transition">
+                            Отмена
+                        </button>
+                        <button hx-post="/scan" 
+                                hx-target="#scan-content" 
+                                class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition">
+                            Начать поиск
+                        </button>
+                    </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
     """
 
-@router.post("/scan")
-async def run_manual_scan(request: Request, background_tasks: BackgroundTasks):
+@router.post("/scan", response_class=HTMLResponse)
+async def run_manual_scan(request: Request):
     path = config_manager.get('PATHS', 'downloads_folder')
     if not path or not os.path.exists(path):
-        return Response(content=f'<script>alert("Папка загрузок не настроена или не существует: {path}"); document.getElementById("modal-container").remove();</script>')
+        return f'<div class="text-red-500 font-bold p-4">Ошибка: Папка {path} не найдена</div>'
     
-    background_tasks.add_task(perform_manual_scan, path)
-    
-    response = Response(status_code=204)
-    response.headers["HX-Refresh"] = "true"
-    return response
+    # Return loading state that immediately triggers the actual scan
+    return f"""
+    <div class="flex flex-col items-center justify-center py-12 space-y-4" 
+         hx-get="/scan/perform" 
+         hx-trigger="load" 
+         hx-target="#scan-content">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <p class="text-indigo-600 font-bold">Идет сканирование...</p>
+        <p class="text-xs text-gray-400">Пожалуйста, не закрывайте окно</p>
+    </div>
+    """
 
-async def perform_manual_scan(scan_path: str):
+def is_folder_empty_recursive(path: Path):
+    if not path.is_dir(): return False
+    for item in path.iterdir():
+        if item.is_file(): return False
+        if not is_folder_empty_recursive(item): return False
+    return True
+
+@router.get("/scan/perform", response_class=HTMLResponse)
+async def perform_scan_and_return_results(request: Request, db: AsyncSession = Depends(get_db)):
+    scan_path = config_manager.get('PATHS', 'downloads_folder')
     path = Path(scan_path).resolve()
-    logger.info(f"--> [SCAN] Starting manual scan of: {path}")
     
-    if not path.exists():
-        logger.error(f"--> [SCAN] Path does not exist: {path}")
-        return
+    results = {"processed": [], "empty_folders": []}
+    
+    # 1. Process items
+    try:
+        items = list(path.iterdir())
+        for item in items:
+            if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
+                await processor.process_torrent(db, torrent_name=item.name, torrent_dir=str(item.parent))
+                results["processed"].append(item.name)
+        
+        # 2. Find empty folders
+        for item in path.glob('**/'):
+            if item == path: continue
+            if is_folder_empty_recursive(item):
+                results["empty_folders"].append(str(item))
+                
+    except Exception as e:
+        logger.error(f"Scan error: {e}")
+        return f'<div class="text-red-500">Ошибка при сканировании: {e}</div>'
 
-    async with AsyncSessionLocal() as db:
+    # 3. Render Results
+    processed_list = "".join([f'<li class="truncate text-gray-600">• {n}</li>' for n in results["processed"][:10]])
+    if len(results["processed"]) > 10: processed_list += f'<li class="text-gray-400 italic">...и еще {len(results["processed"])-10}</li>'
+    
+    empty_folders_section = ""
+    if results["empty_folders"]:
+        folders_json = ",".join([f'"{f}"' for f in results["empty_folders"]])
+        empty_folders_section = f"""
+        <div class="mt-6 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+            <h4 class="text-sm font-bold text-amber-800 mb-2">Найдено пустых папок: {len(results["empty_folders"])}</h4>
+            <div class="max-h-32 overflow-y-auto mb-4 text-xs font-mono text-amber-700 space-y-1">
+                {"".join([f'<div>{Path(f).name}/</div>' for f in results["empty_folders"]])}
+            </div>
+            <button hx-post="/scan/cleanup" 
+                    hx-vals='{{"folders": [{folders_json}]}}'
+                    hx-target="closest div"
+                    hx-confirm="Вы уверены, что хотите удалить эти папки?"
+                    class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition">
+                🗑 Удалить пустые папки
+            </button>
+        </div>
+        """
+
+    return f"""
+    <div class="space-y-4">
+        <div class="p-4 bg-green-50 border border-green-100 rounded-xl">
+            <h4 class="text-sm font-bold text-green-800 mb-2">✅ Сканирование завершено</h4>
+            <p class="text-xs text-green-700 mb-2">Обработано объектов: {len(results["processed"])}</p>
+            <ul class="text-[10px] space-y-1">
+                {processed_list or '<li class="text-gray-400">Новых объектов не найдено</li>'}
+            </ul>
+        </div>
+        {empty_folders_section}
+        <button onclick="window.location.reload()" class="w-full py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-black transition">
+            Закрыть и обновить список
+        </button>
+    </div>
+    """
+
+@router.post("/scan/cleanup", response_class=HTMLResponse)
+async def cleanup_folders(folders: List[str] = Form(...)):
+    deleted = 0
+    errors = 0
+    for folder in folders:
         try:
-            # If it's a directory, we can scan top-level items
-            if path.is_dir():
-                items = list(path.iterdir())
-                logger.info(f"--> [SCAN] Found {len(items)} items in directory")
-                for item in items:
-                    # Process only directories or video files
-                    if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
-                        logger.info(f"--> [SCAN] Processing item: {item.name}")
-                        await processor.process_torrent(
-                            db,
-                            torrent_name=item.name,
-                            torrent_dir=str(item.parent)
-                        )
-            else:
-                # Single file scan
-                logger.info(f"--> [SCAN] Processing single file: {path.name}")
-                await processor.process_torrent(
-                    db,
-                    torrent_name=path.name,
-                    torrent_dir=str(path.parent)
-                )
-            logger.info(f"--> [SCAN] Manual scan completed")
-        except Exception as e:
-            logger.error(f"--> [SCAN] Error during manual scan: {e}", exc_info=True)
+            p = Path(folder)
+            if p.exists() and p.is_dir():
+                shutil.rmtree(p)
+                deleted += 1
+        except:
+            errors += 1
+            
+    return f"""
+    <div class="p-4 bg-blue-50 border border-blue-100 rounded-xl text-center">
+        <p class="text-sm font-bold text-blue-800">🗑 Очистка завершена</p>
+        <p class="text-xs text-blue-600">Удалено папок: {deleted} {"(Ошибок: "+str(errors)+")" if errors else ""}</p>
+    </div>
+    """
