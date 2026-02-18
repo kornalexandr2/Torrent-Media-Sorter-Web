@@ -45,7 +45,8 @@ class Processor:
 
         if not download:
             # Check if we already have this path in DB to avoid duplicates
-            stmt = select(Download).where(Download.original_path == str(p))
+            # Use order_by and limit(1) to be safe against existing duplicates
+            stmt = select(Download).where(Download.original_path == str(p)).order_by(Download.id.desc()).limit(1)
             res = await db.execute(stmt)
             download = res.scalar_one_or_none()
             
@@ -64,6 +65,11 @@ class Processor:
                 download.detected_year = None
                 download.metadata_source = None
                 download.source_id = None
+                
+                # Clear previous file moves to avoid history mess
+                from ..models import FileMove
+                from sqlalchemy import delete
+                await db.execute(delete(FileMove).where(FileMove.download_id == download.id))
             
             await db.flush()
             
