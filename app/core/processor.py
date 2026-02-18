@@ -14,6 +14,7 @@ from .renamer import renamer
 from .operations import file_ops
 from .notifier import notifier
 from .clients import get_client
+from .logger import sys_logger
 
 logger = logging.getLogger('TorrentMediaSorter')
 
@@ -27,6 +28,8 @@ class Processor:
             download.logs += f"\n[{timestamp}] {message}"
 
     async def process_torrent(self, db: AsyncSession, torrent_id: str = None, torrent_name: str = None, torrent_dir: str = None, override_meta: dict = None, download_id: int = None):
+        source_type = "USER" if (override_meta or not torrent_id) else "SCRIPT"
+        await sys_logger.log(1, source_type, f"Запуск обработки: {torrent_name}")
         logger.info(f"--> [PROCESSOR] Processing request: {torrent_name} in {torrent_dir}")
         if not torrent_name or not torrent_dir:
             return
@@ -69,6 +72,7 @@ class Processor:
         await db.commit()
 
         try:
+            await sys_logger.log(3, "SYSTEM", f"Анализ типа контента для {p.name}")
             m_type_raw, target_name = scanner.detect_type(p)
             q_name = scanner.clean_search(target_name)
             self._add_log(download, f"Определен тип: {m_type_raw}, поисковый запрос: {q_name}")
@@ -78,12 +82,15 @@ class Processor:
                 self._add_log(download, f"Использованы ручные метаданные от {api_data.get('source', 'manual')}")
             else:
                 self._add_log(download, "Поиск метаданных в API...")
+                await sys_logger.log(3, "SYSTEM", f"Поиск метаданных для: {q_name}")
                 api_data = await metadata_manager.resolve(q_name)
             
             if api_data and 'type' in api_data:
                 m_type = api_data['type']
+                await sys_logger.log(3, "SYSTEM", f"Получены данные от {api_data['source']} для {q_name}")
             else:
                 m_type = 'tv' if m_type_raw == 'tv' else 'movie'
+                await sys_logger.log(3, "SYSTEM", f"Метаданные не найдены, используем детекцию сканера: {m_type}")
 
             type_map = {
                 'movie': MediaType.MOVIE.value,
@@ -109,6 +116,8 @@ class Processor:
                 download.detected_year = api_data['year']
                 download.metadata_source = api_data['source']
                 download.source_id = api_data['source_id']
+                self._add_log(download, f"Метаданные найдены ({api_data['source']}): {download.detected_title}")
+                await sys_logger.log(1, "SYSTEM", f"Метаданные найдены: {download.detected_title}")
                 t = download.detected_title
                 folder_name = renamer.sanitize(f"{t} ({api_data['year']})" if (api_data['year'] and m_type in ['movie', 'tv']) else t)
             else:
@@ -158,12 +167,15 @@ class Processor:
                     success_count += 1
                     db.add(FileMove(download_id=download.id, src_path=str(f), dst_path=str(target)))
                     self._add_log(download, f"Успешно: {f.name} -> {target.name}")
+                    await sys_logger.log(3, "SYSTEM", f"Файл перенесен: {f.name}")
                 else:
                     self._add_log(download, f"ОШИБКА: {f.name}")
+                    await sys_logger.log(2, "SYSTEM", f"Ошибка переноса: {f.name}")
 
             if success_count > 0:
                 download.status = MediaStatus.SUCCESS.value
                 self._add_log(download, f"Завершено. Файлов: {success_count}")
+                await sys_logger.log(1, "SYSTEM", f"Успешно обработано: {torrent_name}")
                 try:
                     await notifier.send_telegram({
                         'title': download.detected_title or torrent_name,
@@ -182,6 +194,7 @@ class Processor:
 
         except Exception as e:
             self._add_log(download, f"КРИТИЧЕСКАЯ ОШИБКА: {str(e)}")
+            await sys_logger.log(2, "SYSTEM", f"Критическая ошибка: {str(e)}")
             download.status = MediaStatus.ERROR.value
             await db.commit()
 

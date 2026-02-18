@@ -6,12 +6,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..schemas import WebhookPayload
 from ..database import get_db, AsyncSessionLocal
 from ..core.processor import processor
+from ..core.logger import sys_logger
 
 router = APIRouter()
 logger = logging.getLogger('TorrentMediaSorter')
 
 @router.post("/webhook")
 async def webhook(payload: WebhookPayload, background_tasks: BackgroundTasks):
+    await sys_logger.log(1, "SCRIPT", f"Получен вебхук для торрента: {payload.torrent_name}")
     logger.info(f"--> [WEBHOOK] Received: {payload.torrent_name}")
     
     # Запуск в фоне, чтобы не блокировать клиент

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from ..models import Download, FileMove, MediaStatus
 from ..config import config_manager
+from .logger import sys_logger
 
 logger = logging.getLogger('TorrentMediaSorter')
 
@@ -15,32 +16,37 @@ class FileOperations:
         src_path = Path(src)
         dst_path = Path(dst)
         dst_path.parent.mkdir(parents=True, exist_ok=True)
+        await sys_logger.log(3, "FILE", f"Начало переноса ({mode}): {src_path.name} -> {dst_path.name}")
         
         try:
             if mode == 'hardlink':
                 try:
                     os.link(src, dst)
+                    await sys_logger.log(3, "FILE", f"Создан хардлинк: {dst_path.name}")
                     return True
                 except OSError as e:
+                    await sys_logger.log(2, "FILE", f"Ошибка хардлинка, откат к копированию: {e}")
                     logger.error(f"--> [HARDLINK] Failed, falling back to copy: {e}")
                     mode = 'copy'
 
             if mode == 'copy':
                 shutil.copy2(src, dst)
+                await sys_logger.log(3, "FILE", f"Файл скопирован: {dst_path.name}")
                 return True
             
             if mode == 'move':
-                # Shutil move across filesystems can be slow, 
-                # but we use it for reliability.
                 shutil.move(src, dst)
+                await sys_logger.log(3, "FILE", f"Файл перемещен: {dst_path.name}")
                 return True
                 
         except Exception as e:
+            await sys_logger.log(2, "FILE", f"Критическая ошибка переноса ({mode}): {e}")
             logger.error(f"--> [TRANSFER] Error ({mode}): {e}")
             return False
         return False
 
     async def undo_download(self, download_id: int, db: AsyncSession):
+        await sys_logger.log(1, "USER", f"Начало отката (Undo) для ID {download_id}")
         stmt = select(Download).where(Download.id == download_id)
         result = await db.execute(stmt)
         download = result.scalar_one_or_none()

@@ -54,3 +54,13 @@ class Setting(Base):
     
     key: Mapped[str] = mapped_column(String(255), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
+
+class SystemLog(Base):
+    __tablename__ = "system_logs"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+    level: Mapped[str] = mapped_column(String(20)) # DEBUG, INFO, ERROR, OP
+    source: Mapped[str] = mapped_column(String(50)) # USER, SYSTEM, SCRIPT
+    message: Mapped[str] = mapped_column(Text)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

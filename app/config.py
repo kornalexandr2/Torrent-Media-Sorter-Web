@@ -31,7 +31,9 @@ class ConfigManager:
         }
         self.config['LOGGING'] = {
             'log_file': str(BASE_DIR / 'data' / 'sorter.log'),
-            'level': 'INFO'
+            'level': 'INFO',
+            'system_log_level': '1', # 0: Off, 1: Operations, 2: Errors, 3: Full Debug
+            'log_retention_hours': '24'
         }
         self.config['SYSTEM'] = {
             'video_extensions': '.mkv,.avi,.mp4',

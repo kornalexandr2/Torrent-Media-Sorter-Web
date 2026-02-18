@@ -4,6 +4,7 @@ import urllib.parse
 import logging
 from typing import Optional, Dict, Any, List
 from ..config import config_manager
+from .logger import sys_logger
 
 logger = logging.getLogger('TorrentMediaSorter')
 
@@ -16,6 +17,7 @@ class MetadataProvider:
 
 class KinopoiskProvider(MetadataProvider):
     async def get_metadata(self, query: str) -> Optional[Dict[str, Any]]:
+        await sys_logger.log(3, "API:KP", f"Запрос: {query}")
         api_key = config_manager.get('API', 'kp_api_key')
         if not api_key or not isinstance(api_key, str) or "YOUR_" in api_key:
             return None
@@ -95,6 +97,7 @@ class KinopoiskProvider(MetadataProvider):
 
 class TMDBProvider(MetadataProvider):
     async def get_metadata(self, query: str) -> Optional[Dict[str, Any]]:
+        await sys_logger.log(3, "API:TMDB", f"Запрос: {query}")
         api_key = config_manager.get('API', 'tmdb_api_key')
         if not api_key or not isinstance(api_key, str) or "YOUR_" in api_key:
             return None
@@ -168,6 +171,7 @@ class TMDBProvider(MetadataProvider):
 
 class TVDBProvider(MetadataProvider):
     async def get_metadata(self, query: str) -> Optional[Dict[str, Any]]:
+        await sys_logger.log(3, "API:TVDB", f"Запрос: {query}")
         api_key = config_manager.get('API', 'tvdb_api_key')
         if not api_key or not isinstance(api_key, str) or "YOUR_" in api_key:
             return None

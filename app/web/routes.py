@@ -13,6 +13,7 @@ from ..models import Download, MediaStatus, MediaType
 from ..config import config_manager, BASE_DIR
 from ..core.operations import file_ops
 from ..core.processor import processor
+from ..core.logger import sys_logger
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(BASE_DIR / "app/web/templates"))
@@ -20,6 +21,7 @@ logger = logging.getLogger('TorrentMediaSorter')
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+    await sys_logger.log(3, "USER", "Переход на Дашборд")
     stmt = select(Download).order_by(desc(Download.created_at)).limit(50)
     result = await db.execute(stmt)
     downloads = result.scalars().all()
@@ -34,6 +36,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 
 @router.post("/refresh")
 async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+    await sys_logger.log(1, "USER", "Запущена синхронизация дашборда")
     from ..core.clients import get_client
     from ..models import FileMove
     from sqlalchemy import delete
@@ -102,6 +105,7 @@ async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)
 
 @router.post("/undo/{download_id}")
 async def undo_download(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    await sys_logger.log(1, "USER", f"Запрошен откат объекта {download_id}")
     success, msg = await file_ops.undo_download(download_id, db)
     
     if request.headers.get("HX-Request"):
@@ -110,6 +114,7 @@ async def undo_download(download_id: int, request: Request, db: AsyncSession = D
 
 @router.post("/retry/{download_id}")
 async def retry_download(download_id: int, request: Request, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db)):
+    await sys_logger.log(1, "USER", f"Запрошен перезапуск объекта {download_id}")
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
     download = res.scalar_one_or_none()
@@ -146,6 +151,7 @@ async def run_retry_task(download_id: int):
 
 @router.get("/info/{download_id}", response_class=HTMLResponse)
 async def download_info(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    await sys_logger.log(3, "USER", f"Просмотр информации об объекте {download_id}")
     from ..models import FileMove
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
@@ -166,6 +172,7 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
 
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
 async def fix_match_form(download_id: int, request: Request, db: AsyncSession = Depends(get_db)):
+    await sys_logger.log(3, "USER", f"Открытие формы исправления сопоставления {download_id}")
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
     download = res.scalar_one_or_none()
@@ -181,6 +188,7 @@ async def fix_match_apply(
     source_id: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db)
 ):
+    await sys_logger.log(1, "USER", f"Применено ручное исправление для {download_id}")
     # Set pending status immediately for UI feedback
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
@@ -233,6 +241,7 @@ async def run_fix_match_task(download_id: int, media_type: str, source: str, sou
 
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request):
+    await sys_logger.log(3, "USER", "Переход в настройки")
     sections = config_manager.config.sections()
     config_data = {}
     for s in sections:
@@ -262,8 +271,19 @@ async def settings(request: Request):
         "app_port": os.environ.get("APP_PORT", "7887")
     })
 
+@router.get("/logs", response_class=HTMLResponse)
+async def view_logs(request: Request, db: AsyncSession = Depends(get_db)):
+    await sys_logger.log(3, "USER", "Просмотр системных логов")
+    from ..models import SystemLog
+    from sqlalchemy import select, desc
+    stmt = select(SystemLog).order_by(desc(SystemLog.timestamp)).limit(200)
+    res = await db.execute(stmt)
+    logs = res.scalars().all()
+    return templates.TemplateResponse("logs_view.html", {"request": request, "logs": logs})
+
 @router.post("/settings/save")
 async def save_settings(request: Request):
+    await sys_logger.log(1, "USER", "Сохранение настроек")
     form_data = await request.form()
     
     # List of expected checkboxes to handle "off" state
@@ -291,6 +311,11 @@ async def save_settings(request: Request):
             # Skip if it's a checkbox we already handled
             if (section, k) in checkboxes:
                 continue
+            
+            old_val = config_manager.get(section, k)
+            if str(old_val) != str(value):
+                await sys_logger.log(3, "USER", f"Изменен параметр {section}.{k}: {old_val} -> {value}")
+            
             config_manager.set(section, k, value)
             
     # Save masks
@@ -309,6 +334,7 @@ async def save_settings(request: Request):
 
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_form(request: Request):
+    await sys_logger.log(3, "USER", "Открытие формы сканирования")
     download_dir = config_manager.get('PATHS', 'downloads_folder')
     return f"""
     <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -341,6 +367,7 @@ async def scan_form(request: Request):
 
 @router.post("/scan", response_class=HTMLResponse)
 async def run_manual_scan(request: Request):
+    await sys_logger.log(1, "USER", "Запущено ручное сканирование папки")
     path = config_manager.get('PATHS', 'downloads_folder')
     if not path or not os.path.exists(path):
         return f'<div class="text-red-500 font-bold p-4">Ошибка: Папка {path} не найдена</div>'
@@ -431,6 +458,7 @@ async def perform_scan_and_return_results(request: Request, db: AsyncSession = D
 async def cleanup_folders(request: Request):
     form_data = await request.form()
     folders = form_data.getlist("folders")
+    await sys_logger.log(1, "USER", f"Удаление пустых папок ({len(folders)} шт)")
     
     deleted = 0
     errors = 0

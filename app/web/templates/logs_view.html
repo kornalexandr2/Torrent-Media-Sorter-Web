@@ -1,0 +1,75 @@
+{% extends "layout.html" %}
+
+{% block title %}System Logs - Torrent Media Sorter{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-800">Системные логи</h1>
+            <p class="text-sm text-gray-500">История действий системы и пользователя</p>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="window.location.reload()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl transition flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                Обновить
+            </button>
+            <a href="/settings" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-xl transition">Настройки</a>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Время</th>
+                        <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Уровень</th>
+                        <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Источник</th>
+                        <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">Сообщение</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    {% for log in logs %}
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-400 font-mono">
+                            {{ log.timestamp.strftime('%d.%m %H:%M:%S') }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 rounded text-[10px] font-bold uppercase
+                                {% if log.level == 'ERROR' %}bg-red-100 text-red-700
+                                {% elif log.level == 'OP' %}bg-green-100 text-green-700
+                                {% elif log.level == 'DEBUG' %}bg-purple-100 text-purple-700
+                                {% else %}bg-gray-100 text-gray-700{% endif %}">
+                                {{ log.level }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-xs font-bold text-gray-600">
+                            {{ log.source }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            {{ log.message }}
+                            {% if log.details %}
+                            <p class="mt-1 text-[10px] text-gray-400 font-mono break-all">{{ log.details }}</p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-12 text-center text-gray-400">
+                            <svg class="w-12 h-12 mx-auto mb-3 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            Логов пока нет. Проверьте уровень логирования в настройках.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="mt-4 flex justify-between items-center text-xs text-gray-400 px-2">
+        <div>Показаны последние 200 записей</div>
+        <div>Срок хранения настроен в часах</div>
+    </div>
+</div>
+{% endblock %}
