@@ -32,11 +32,11 @@
 <div id="downloads-container" 
      hx-get="/" 
      hx-trigger="{% if any_pending %}every 5s{% else %}none{% endif %}" 
-     hx-select="#downloads-container" 
-     hx-target="#downloads-container" 
+     hx-select="#downloads-table-wrapper" 
+     hx-target="#downloads-table-wrapper" 
      hx-swap="outerHTML">
     
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+    <div id="downloads-table-wrapper" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead class="bg-gray-50 text-gray-600 text-sm uppercase font-semibold">
