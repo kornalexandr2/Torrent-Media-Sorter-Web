@@ -83,7 +83,7 @@ async def fix_match_apply(
     request: Request,
     media_type: str = Form(...),
     source: str = Form(...),
-    source_id: str = Form(...),
+    source_id: Optional[str] = Form(None),
     db: AsyncSession = Depends(get_db)
 ):
     background_tasks.add_task(run_fix_match_task, download_id, media_type, source, source_id)
