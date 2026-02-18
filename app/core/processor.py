@@ -31,7 +31,7 @@ class Processor:
             res = await db.execute(stmt)
             download = res.scalar_one_or_none()
             if download:
-                download.status = MediaStatus.PENDING
+                download.status = MediaStatus.PENDING.value
         else:
             download = None
 
@@ -40,7 +40,7 @@ class Processor:
             download = Download(
                 torrent_name=torrent_name,
                 original_path=str(p),
-                status=MediaStatus.PENDING
+                status=MediaStatus.PENDING.value
             )
             db.add(download)
             await db.flush()
@@ -70,7 +70,7 @@ class Processor:
                 'software': MediaType.SOFTWARE,
                 'other': MediaType.OTHER
             }
-            download.media_type = type_map.get(m_type, MediaType.UNKNOWN)
+            download.media_type = type_map.get(m_type, MediaType.UNKNOWN).value
             
             # Destination mapping
             dest_map = {
@@ -148,7 +148,7 @@ class Processor:
                     db.add(FileMove(download_id=download.id, src_path=str(p), dst_path=str(target)))
 
             if success_count > 0:
-                download.status = MediaStatus.SUCCESS
+                download.status = MediaStatus.SUCCESS.value
                 try:
                     await notifier.send_telegram({
                         'title': download.detected_title or torrent_name,
@@ -158,7 +158,7 @@ class Processor:
                 except Exception as notify_err:
                     logger.error(f"--> [PROCESSOR] Notification error: {notify_err}")
             else:
-                download.status = MediaStatus.ERROR
+                download.status = MediaStatus.ERROR.value
             
             await db.commit()
             
@@ -181,7 +181,7 @@ class Processor:
         except Exception as e:
             logger.error(f"--> [PROCESSOR] Global error during processing: {e}", exc_info=True)
             try:
-                download.status = MediaStatus.ERROR
+                download.status = MediaStatus.ERROR.value
                 await db.commit()
             except:
                 pass

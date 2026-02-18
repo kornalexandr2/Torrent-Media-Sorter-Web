@@ -45,7 +45,7 @@ class FileOperations:
         result = await db.execute(stmt)
         download = result.scalar_one_or_none()
         
-        if not download or download.status == MediaStatus.REVERTED:
+        if not download or download.status == MediaStatus.REVERTED.value:
             return False, "Download not found or already reverted"
 
         stmt_moves = select(FileMove).where(FileMove.download_id == download_id)
@@ -85,7 +85,7 @@ class FileOperations:
             except Exception as e:
                 logger.error(f"--> [UNDO] Error for {move.dst_path}: {e}")
 
-        download.status = MediaStatus.REVERTED
+        download.status = MediaStatus.REVERTED.value
         await db.commit()
         return True, f"Reverted {success_count} files"
 
