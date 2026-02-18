@@ -6,6 +6,20 @@
     <title>{% block title %}Torrent Media Sorter{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+        document.addEventListener('htmx:beforeRequest', function(evt) {
+            console.log('HTMX Request:', evt.detail.path);
+        });
+        document.addEventListener('htmx:afterOnLoad', function(evt) {
+            console.log('HTMX Loaded:', evt.detail.xhr.status);
+        });
+        document.addEventListener('htmx:responseError', function(evt) {
+            console.error('HTMX Response Error:', evt.detail.xhr.status);
+        });
+        document.addEventListener('htmx:sendError', function(evt) {
+            console.error('HTMX Network Error');
+        });
+    </script>
     <style>
         .htmx-indicator { display: none; }
         .htmx-request .htmx-indicator { display: flex; }

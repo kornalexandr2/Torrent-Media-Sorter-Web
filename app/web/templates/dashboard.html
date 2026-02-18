@@ -7,8 +7,8 @@
     <h1 class="text-3xl font-bold text-gray-800">Dashboard</h1>
     <div class="flex gap-3">
         <button hx-get="/scan" 
-                hx-target="#modal-placeholder" 
-                hx-swap="innerHTML"
+                hx-target="body" 
+                hx-swap="beforeend"
                 class="inline-flex items-center justify-center px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer">
             <span class="mr-2 pointer-events-none">📂</span> Сканировать
         </button>
@@ -94,8 +94,8 @@
                         <td class="px-6 py-4 text-right">
                             <div class="flex justify-end gap-2">
                                 <button hx-get="/info/{{ d.id }}" 
-                                        hx-target="#modal-placeholder" 
-                                        hx-swap="innerHTML"
+                                        hx-target="body" 
+                                        hx-swap="beforeend"
                                         class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" 
                                         title="Информация">
                                     <span class="text-lg pointer-events-none">ℹ️</span>
@@ -109,8 +109,8 @@
                                 </button>
 
                                 <button hx-get="/fix-match/{{ d.id }}" 
-                                        hx-target="#modal-placeholder" 
-                                        hx-swap="innerHTML"
+                                        hx-target="body" 
+                                        hx-swap="beforeend"
                                         class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer" 
                                         title="Fix Match">
                                     <span class="text-lg pointer-events-none">🛠</span>
@@ -141,5 +141,4 @@
     </div>
 </div>
 
-<div id="modal-placeholder"></div>
 {% endblock %}
