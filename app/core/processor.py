@@ -32,6 +32,13 @@ class Processor:
             download = res.scalar_one_or_none()
             if download:
                 download.status = MediaStatus.PENDING.value
+                # Clear previous data for a fresh start
+                download.detected_title = None
+                download.detected_year = None
+                download.metadata_source = None
+                download.source_id = None
+                # File moves are handled by adding new ones, but ideally we should clear if we want a clean retry.
+                # For simplicity and DB safety, we update the main record.
         else:
             download = None
 

@@ -65,7 +65,8 @@ async def run_retry_task(download_id: int):
             await processor.process_torrent(
                 db, 
                 torrent_name=p.name, 
-                torrent_dir=str(p.parent)
+                torrent_dir=str(p.parent),
+                download_id=download.id
             )
 
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
