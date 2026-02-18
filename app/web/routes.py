@@ -17,6 +17,17 @@ router = APIRouter()
 templates = Jinja2Templates(directory=str(BASE_DIR / "app/web/templates"))
 logger = logging.getLogger('TorrentMediaSorter')
 
+@router.get("/", response_class=HTMLResponse)
+async def dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+    stmt = select(Download).order_by(desc(Download.created_at)).limit(50)
+    result = await db.execute(stmt)
+    downloads = result.scalars().all()
+    
+    return templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "downloads": downloads
+    })
+
 @router.post("/refresh")
 async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
     from ..core.clients import get_client
