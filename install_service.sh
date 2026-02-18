@@ -66,7 +66,10 @@ echo "📂 Подготовка директории $INSTALL_DIR..."
 run_cmd mkdir -p "$INSTALL_DIR"
 
 # Копирование файлов (если запущен из репозитория) или клонирование
-if [ -f "requirements.txt" ]; then
+CURRENT_DIR=$(pwd)
+if [ "$CURRENT_DIR" == "$INSTALL_DIR" ]; then
+    echo "   Вы уже находитесь в директории установки. Пропуск копирования."
+elif [ -f "requirements.txt" ]; then
     echo "   Копирование файлов из текущей директории..."
     run_cmd cp -r ./* "$INSTALL_DIR/"
 elif [ -d "$INSTALL_DIR/.git" ]; then
