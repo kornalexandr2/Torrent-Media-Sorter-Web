@@ -3,8 +3,11 @@ import os
 import asyncio
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from .database import engine, Base
+from passlib.context import CryptContext
+from sqlalchemy import select
+
+from .database import engine, Base, AsyncSessionLocal
+from .models import User
 from .web.routes import router as web_router
 from .api.webhook import router as webhook_router
 from .core.logger import sys_logger
@@ -17,6 +20,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger('TorrentMediaSorter')
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
 app = FastAPI(title="Torrent Media Sorter")
 
 async def log_cleanup_task():
@@ -28,34 +33,31 @@ async def log_cleanup_task():
             logger.error(f"Error in log cleanup task: {e}")
         await asyncio.sleep(12 * 3600) # Every 12 hours
 
-from passlib.context import CryptContext
-from sqlalchemy import select
-from .models import Base, User
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# Настройка логирования
-...
 # Создание таблиц и начальных данных при старте
 @app.on_event("startup")
 async def startup():
+    # 1. Create tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    # Create default admin if not exists
+    # 2. Create default admin if not exists
     async with AsyncSessionLocal() as db:
-        stmt = select(User).where(User.username == "admin")
-        res = await db.execute(stmt)
-        if not res.scalar_one_or_none():
-            admin = User(
-                username="admin",
-                password_hash=pwd_context.hash("adminadmin1"),
-                is_admin=True
-            )
-            db.add(admin)
-            await db.commit()
-            logger.info("Default admin user created")
+        try:
+            stmt = select(User).where(User.username == "admin")
+            res = await db.execute(stmt)
+            if not res.scalar_one_or_none():
+                admin = User(
+                    username="admin",
+                    password_hash=pwd_context.hash("adminadmin1"),
+                    is_admin=True
+                )
+                db.add(admin)
+                await db.commit()
+                logger.info("Default admin user created")
+        except Exception as e:
+            logger.error(f"Error creating default user: {e}")
 
+    # 3. Start background tasks
     asyncio.create_task(log_cleanup_task())
 
 # Подключение роутов
