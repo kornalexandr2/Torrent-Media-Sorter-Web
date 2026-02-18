@@ -24,6 +24,9 @@ class ConfigManager:
         self.config['PATHS'] = {
             'movies_folder': '~/media/Movies',
             'series_folder': '~/media/Series',
+            'games_folder': '~/media/Games',
+            'software_folder': '~/media/Software',
+            'other_folder': '~/media/Other',
         }
         self.config['LOGGING'] = {
             'log_file': str(BASE_DIR / 'config' / 'sorter.log'),
@@ -83,11 +86,24 @@ class ConfigManager:
 
     def validate(self):
         """Check if crucial settings are still using placeholders."""
-        movies = self.get('PATHS', 'movies_folder', '')
-        series = self.get('PATHS', 'series_folder', '')
+        paths_to_check = [
+            ('PATHS', 'movies_folder'),
+            ('PATHS', 'series_folder'),
+            ('PATHS', 'games_folder'),
+            ('PATHS', 'software_folder'),
+            ('PATHS', 'other_folder'),
+        ]
         
-        if 'change/me' in movies.lower() or 'change/me' in series.lower():
-            return False, "Movies or Series folder path is not configured. Please check config.ini."
+        for section, key in paths_to_check:
+            val = self.get(section, key, '')
+            if not val: continue
+            
+            p = Path(val).expanduser()
+            if not p.exists():
+                try:
+                    p.mkdir(parents=True, exist_ok=True)
+                except Exception as e:
+                    logger.error(f"Could not create folder {val}: {e}")
         
         # Check API keys for placeholders
         api_keys = [
@@ -100,28 +116,6 @@ class ConfigManager:
             if val and "YOUR_" in val:
                 logger.warning(f"API key {key} is still using placeholder value.")
 
-        # Check if folders exist
-        m_path = Path(movies).expanduser()
-        s_path = Path(series).expanduser()
-        
-        if not m_path.exists():
-            try:
-                m_path.mkdir(parents=True, exist_ok=True)
-            except Exception as e:
-                return False, f"Could not create movies folder: {e}"
-        
-        if not os.access(m_path, os.W_OK):
-            return False, f"No write permission to movies folder: {m_path}"
-                
-        if not s_path.exists():
-            try:
-                s_path.mkdir(parents=True, exist_ok=True)
-            except Exception as e:
-                return False, f"Could not create series folder: {e}"
-        
-        if not os.access(s_path, os.W_OK):
-            return False, f"No write permission to series folder: {s_path}"
-                
         return True, ""
 
 config_manager = ConfigManager(CONFIG_FILE)

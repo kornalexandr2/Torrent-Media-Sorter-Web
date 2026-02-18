@@ -17,6 +17,9 @@ class MediaStatus(str, enum.Enum):
 class MediaType(str, enum.Enum):
     MOVIE = "MOVIE"
     SERIES = "SERIES"
+    GAME = "GAME"
+    SOFTWARE = "SOFTWARE"
+    OTHER = "OTHER"
     UNKNOWN = "UNKNOWN"
 
 class Download(Base):

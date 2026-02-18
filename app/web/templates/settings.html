@@ -23,6 +23,18 @@
                     <input type="text" name="PATHS.series_folder" value="{{ config.PATHS.series_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
                 </div>
                 <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для игр</label>
+                    <input type="text" name="PATHS.games_folder" value="{{ config.PATHS.games_folder or '' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для софта</label>
+                    <input type="text" name="PATHS.software_folder" value="{{ config.PATHS.software_folder or '' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                </div>
+                <div class="md:col-span-2">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для прочего (Other)</label>
+                    <input type="text" name="PATHS.other_folder" value="{{ config.PATHS.other_folder or '' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                </div>
+                <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">Язык переименования</label>
                     <select name="RENAMING.rename_mode" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
                         <option value="ru" {% if config.RENAMING.rename_mode == 'ru' %}selected{% endif %}>Русский</option>

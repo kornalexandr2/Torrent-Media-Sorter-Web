@@ -56,18 +56,40 @@ class Processor:
             else:
                 api_data = await metadata_manager.resolve(q_name)
             
-            m_type = 'tv' if (m_type_raw == 'tv' or (api_data and api_data['type'] == 'tv')) else 'movie'
-            download.media_type = MediaType.SERIES if m_type == 'tv' else MediaType.MOVIE
+            # Detect final type
+            if api_data and 'type' in api_data:
+                m_type = api_data['type'] # movie, tv, game, software, other
+            else:
+                m_type = 'tv' if m_type_raw == 'tv' else 'movie'
+
+            # Map to Enum
+            type_map = {
+                'movie': MediaType.MOVIE,
+                'tv': MediaType.SERIES,
+                'game': MediaType.GAME,
+                'software': MediaType.SOFTWARE,
+                'other': MediaType.OTHER
+            }
+            download.media_type = type_map.get(m_type, MediaType.UNKNOWN)
             
-            movies_folder = Path(config_manager.get('PATHS', 'movies_folder')).expanduser()
-            series_folder = Path(config_manager.get('PATHS', 'series_folder')).expanduser()
-            dest_root = series_folder if m_type == 'tv' else movies_folder
+            # Destination mapping
+            dest_map = {
+                'movie': config_manager.get('PATHS', 'movies_folder'),
+                'tv': config_manager.get('PATHS', 'series_folder'),
+                'game': config_manager.get('PATHS', 'games_folder'),
+                'software': config_manager.get('PATHS', 'software_folder'),
+                'other': config_manager.get('PATHS', 'other_folder')
+            }
+            dest_root = Path(dest_map.get(m_type, dest_map['other'])).expanduser()
             
             if not dest_root.exists():
-                logger.error(f"--> [PROCESSOR] Destination folder does not exist: {dest_root}")
-                download.status = MediaStatus.ERROR
-                await db.commit()
-                return
+                try:
+                    dest_root.mkdir(parents=True, exist_ok=True)
+                except Exception as e:
+                    logger.error(f"--> [PROCESSOR] Could not create destination folder {dest_root}: {e}")
+                    download.status = MediaStatus.ERROR
+                    await db.commit()
+                    return
             
             if api_data:
                 download.detected_title = api_data['titles'].get('ru') or api_data['titles'].get('origin')
@@ -76,7 +98,10 @@ class Processor:
                 download.source_id = api_data['source_id']
                 
                 t = download.detected_title
-                folder_name = renamer.sanitize(f"{t} ({api_data['year']})" if api_data['year'] else t)
+                if m_type in ['movie', 'tv']:
+                    folder_name = renamer.sanitize(f"{t} ({api_data['year']})" if api_data['year'] else t)
+                else:
+                    folder_name = renamer.sanitize(t) # Games/Software usually don't need year in folder name
             else:
                 folder_name = renamer.sanitize(p.name)
             

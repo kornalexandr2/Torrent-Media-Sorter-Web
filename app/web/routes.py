@@ -103,7 +103,19 @@ async def run_fix_match_task(download_id: int, media_type: str, source: str, sou
         if download and os.path.exists(download.original_path):
             # 3. Resolve new metadata
             from ..core.metadata import metadata_manager
-            api_data = await metadata_manager.resolve_by_id(source, source_id, media_type)
+            
+            if source == "none":
+                # Manual mode
+                api_data = {
+                    'title': source_id or Path(download.original_path).name,
+                    'titles': {'origin': source_id or Path(download.original_path).name},
+                    'year': '',
+                    'type': media_type,
+                    'source': 'manual',
+                    'source_id': ''
+                }
+            else:
+                api_data = await metadata_manager.resolve_by_id(source, source_id, media_type)
             
             if api_data:
                 p = Path(download.original_path)
