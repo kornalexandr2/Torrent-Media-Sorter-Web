@@ -28,13 +28,12 @@
             console.log('HTMX Request:', evt.detail.path || (evt.detail.requestConfig ? evt.detail.requestConfig.path : 'unknown'));
         });
         document.addEventListener('htmx:afterOnLoad', function(evt) {
-            console.log('HTMX Loaded:', evt.detail.xhr.status);
-            if (evt.detail.xhr.status === 200) {
-                console.log('Response body length:', evt.detail.xhr.responseText.length);
-                const target = document.querySelector(evt.detail.target.selector);
-                if (!target) {
-                    console.error('HTMX Error: Target element not found:', evt.detail.target.selector);
-                }
+            console.log('HTMX Loaded. Status:', evt.detail.xhr.status);
+            const target = evt.detail.target;
+            if (target) {
+                console.log('HTMX Target found:', target.id || target.tagName);
+            } else {
+                console.error('HTMX Error: Target element is NULL or UNDEFINED');
             }
         });
         document.addEventListener('htmx:responseError', function(evt) {
