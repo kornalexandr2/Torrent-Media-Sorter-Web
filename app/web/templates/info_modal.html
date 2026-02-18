@@ -90,7 +90,7 @@
                     🔄 Повторить
                 </button>
             </form>
-            <button hx-get="/fix-match/{{ download.id }}" hx-target="#modal-root" hx-swap="innerHTML" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition shadow-sm">
+            <button hx-get="/fix-match/{{ download.id }}" hx-target="body" hx-swap="beforeend" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition shadow-sm">
                 🛠 Исправить
             </button>
             {% if download.status == 'SUCCESS' %}

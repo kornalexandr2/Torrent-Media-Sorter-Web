@@ -7,31 +7,12 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('HTMX Initialized. Version:', htmx.version);
-        });
-
-        document.addEventListener('htmx:beforeRequest', function(evt) {
-            console.log('HTMX Request Started:', evt.detail.path);
-        });
-        
-        document.addEventListener('htmx:afterOnLoad', function(evt) {
-            console.log('HTMX Response Received. Status:', evt.detail.xhr.status);
-        });
-
-        document.addEventListener('htmx:beforeSwap', function(evt) {
-            console.log('HTMX Preparing to swap content into:', evt.detail.target.id);
-        });
-
+        // Простейшая отладка для подтверждения вставки
         document.addEventListener('htmx:afterSwap', function(evt) {
-            console.log('HTMX Swap Complete. Content length in target:', evt.detail.target.innerHTML.length);
-            if (evt.detail.target.id === 'modal-root' && evt.detail.target.innerHTML.length > 0) {
-                console.log('MODAL SHOULD BE VISIBLE NOW');
+            if (evt.detail.xhr.status === 200) {
+                console.log('HTMX: Вставлено контента (байт):', evt.detail.xhr.responseText.length);
+                console.log('HTMX: Цель вставки:', evt.detail.target.tagName);
             }
-        });
-
-        document.addEventListener('htmx:load', function(evt) {
-            console.log('HTMX Node Loaded/Processed:', evt.detail.elt.id || evt.detail.elt.tagName);
         });
     </script>
     <style>
@@ -39,14 +20,6 @@
         .htmx-request .htmx-indicator { display: flex; }
         .htmx-request.htmx-indicator { display: flex; }
         .htmx-request .htmx-indicator-hide { opacity: 0; }
-        
-        /* Важно: не используем display: none для родителя модалки */
-        #modal-root {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 9999;
-        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -80,8 +53,5 @@
     <footer class="text-center py-8 text-gray-500 text-sm">
         Torrent Media Sorter Web &copy; 2026
     </footer>
-
-    <!-- Контейнер для модальных окон в самом конце body -->
-    <div id="modal-root"></div>
 </body>
 </html>
