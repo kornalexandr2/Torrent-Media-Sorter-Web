@@ -4,7 +4,7 @@ import logging
 import re
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.exc import SQLAlchemyError
 from ..models import Download, FileMove, MediaStatus, MediaType
 from ..config import config_manager
@@ -25,33 +25,22 @@ class Processor:
 
         p = Path(torrent_dir) / torrent_name
         if not p.exists():
+            logger.warning(f"--> [PROCESSOR] Path does not exist: {p}")
             return
 
+        download = None
         if download_id:
             stmt = select(Download).where(Download.id == download_id)
             res = await db.execute(stmt)
             download = res.scalar_one_or_none()
-            if download:
-                download.status = MediaStatus.PENDING.value
-                # Clear previous data for a fresh start
-                download.detected_title = None
-                download.detected_year = None
-                download.metadata_source = None
-                download.source_id = None
-                # File moves are handled by adding new ones, but ideally we should clear if we want a clean retry.
-                # For simplicity and DB safety, we update the main record.
-        else:
-            download = None
-
+        
         if not download:
-            # Check if we already have this path in DB to avoid duplicates
-            # Use order_by and limit(1) to be safe against existing duplicates
+            # Check for existing path
             stmt = select(Download).where(Download.original_path == str(p)).order_by(Download.id.desc()).limit(1)
             res = await db.execute(stmt)
             download = res.scalar_one_or_none()
             
             if not download:
-                # Create initial DB record
                 download = Download(
                     torrent_name=torrent_name,
                     original_path=str(p),
@@ -59,20 +48,13 @@ class Processor:
                 )
                 db.add(download)
             else:
-                # Update existing record for a fresh start
                 download.status = MediaStatus.PENDING.value
                 download.detected_title = None
                 download.detected_year = None
                 download.metadata_source = None
                 download.source_id = None
-                
-                # Clear previous file moves to avoid history mess
-                from ..models import FileMove
-                from sqlalchemy import delete
                 await db.execute(delete(FileMove).where(FileMove.download_id == download.id))
-            
-            await db.flush()
-            
+        
         await db.commit()
 
         try:
@@ -86,19 +68,19 @@ class Processor:
             
             # Detect final type
             if api_data and 'type' in api_data:
-                m_type = api_data['type'] # movie, tv, game, software, other
+                m_type = api_data['type']
             else:
                 m_type = 'tv' if m_type_raw == 'tv' else 'movie'
 
-            # Map to Enum
+            # Map to Enum values
             type_map = {
-                'movie': MediaType.MOVIE,
-                'tv': MediaType.SERIES,
-                'game': MediaType.GAME,
-                'software': MediaType.SOFTWARE,
-                'other': MediaType.OTHER
+                'movie': MediaType.MOVIE.value,
+                'tv': MediaType.SERIES.value,
+                'game': MediaType.GAME.value,
+                'software': MediaType.SOFTWARE.value,
+                'other': MediaType.OTHER.value
             }
-            download.media_type = type_map.get(m_type, MediaType.UNKNOWN).value
+            download.media_type = type_map.get(m_type, MediaType.UNKNOWN.value)
             
             # Destination mapping
             dest_map = {
@@ -108,16 +90,11 @@ class Processor:
                 'software': config_manager.get('PATHS', 'software_folder'),
                 'other': config_manager.get('PATHS', 'other_folder')
             }
-            dest_root = Path(dest_map.get(m_type, dest_map['other'])).expanduser()
+            dest_root_str = dest_map.get(m_type, dest_map['other'])
+            dest_root = Path(dest_root_str).expanduser()
             
             if not dest_root.exists():
-                try:
-                    dest_root.mkdir(parents=True, exist_ok=True)
-                except Exception as e:
-                    logger.error(f"--> [PROCESSOR] Could not create destination folder {dest_root}: {e}")
-                    download.status = MediaStatus.ERROR
-                    await db.commit()
-                    return
+                dest_root.mkdir(parents=True, exist_ok=True)
             
             if api_data:
                 download.detected_title = api_data['titles'].get('ru') or api_data['titles'].get('origin')
@@ -129,47 +106,54 @@ class Processor:
                 if m_type in ['movie', 'tv']:
                     folder_name = renamer.sanitize(f"{t} ({api_data['year']})" if api_data['year'] else t)
                 else:
-                    folder_name = renamer.sanitize(t) # Games/Software usually don't need year in folder name
+                    folder_name = renamer.sanitize(t)
             else:
                 folder_name = renamer.sanitize(p.name)
-            
+
             mode = config_manager.get('RENAMING', 'mode', 'move').lower()
             season_folders = config_manager.getboolean('RENAMING', 'season_folders', True)
             
-            success_count = 0
-            
             video_exts = tuple(x.strip() for x in config_manager.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
-            subtitle_exts = ('.srt', '.sub', '.ass', '.vtt')
+            
+            success_count = 0
+            final_dest = dest_root / folder_name
 
+            # LOGIC FOR TRANSFER
             if p.is_dir():
-                final_dest = dest_root / folder_name
+                # For non-video types (Games/Soft), move EVERYTHING
+                is_media = m_type in ['movie', 'tv']
                 
                 for f in list(p.rglob('*')):
-                    if f.is_file() and f.suffix.lower() in video_exts:
-                        # For series, optionally create Season XX folders
-                        current_dest = final_dest
-                        if m_type == 'tv' and season_folders:
-                            ep_tag = scanner.get_season_episode(f.name)
-                            if ep_tag:
-                                m = re.search(r'S(\d{1,2})', ep_tag, re.I)
-                                if m:
-                                    s_num = int(m.group(1))
-                                    current_dest = final_dest / f"Season {s_num:02d}"
-                        
-                        new_name = renamer.construct_filename(api_data, f)
-                        target = renamer.get_unique_path(current_dest / new_name)
-                        
-                        if await file_ops.transfer_file(str(f), str(target), mode):
-                            success_count += 1
-                            db.add(FileMove(download_id=download.id, src_path=str(f), dst_path=str(target)))
-                            # Check subtitles
-                            for sub_ext in subtitle_exts:
-                                sub_src = f.with_suffix(sub_ext)
-                                if sub_src.exists():
-                                    await file_ops.transfer_file(str(sub_src), str(target.with_suffix(sub_ext)), mode)
-                                    db.add(FileMove(download_id=download.id, src_path=str(sub_src), dst_path=str(target.with_suffix(sub_ext))))
+                    if not f.is_file(): continue
+                    
+                    # If it's movie/tv, filter by extension. Otherwise, take everything.
+                    if is_media and f.suffix.lower() not in video_exts:
+                        continue
+                    
+                    # Determine target path
+                    rel_path = f.relative_to(p)
+                    if is_media and season_folders:
+                        # Special handling for series folders
+                        ep_tag = scanner.get_season_episode(f.name)
+                        if ep_tag:
+                            m = re.search(r'S(\d{1,2})', ep_tag, re.I)
+                            if m:
+                                s_num = int(m.group(1))
+                                current_folder = final_dest / f"Season {s_num:02d}"
+                                target = renamer.get_unique_path(current_folder / renamer.construct_filename(api_data, f))
+                            else:
+                                target = renamer.get_unique_path(final_dest / rel_path)
+                        else:
+                            target = renamer.get_unique_path(final_dest / rel_path)
+                    else:
+                        target = renamer.get_unique_path(final_dest / rel_path)
+
+                    if await file_ops.transfer_file(str(f), str(target), mode):
+                        success_count += 1
+                        db.add(FileMove(download_id=download.id, src_path=str(f), dst_path=str(target)))
             else:
-                new_fname = renamer.construct_filename(api_data, p)
+                # Single file
+                new_fname = renamer.construct_filename(api_data, p) if m_type in ['movie', 'tv'] else p.name
                 target = renamer.get_unique_path(dest_root / new_fname)
                 if await file_ops.transfer_file(str(p), str(target), mode):
                     success_count += 1
@@ -177,41 +161,29 @@ class Processor:
 
             if success_count > 0:
                 download.status = MediaStatus.SUCCESS.value
+                logger.info(f"--> [PROCESSOR] Successfully processed {success_count} files for {torrent_name}")
                 try:
                     await notifier.send_telegram({
                         'title': download.detected_title or torrent_name,
                         'year': download.detected_year or '',
                         'status': 'Готово'
                     })
-                except Exception as notify_err:
-                    logger.error(f"--> [PROCESSOR] Notification error: {notify_err}")
+                except: pass
             else:
+                logger.warning(f"--> [PROCESSOR] No files were transferred for {torrent_name}")
                 download.status = MediaStatus.ERROR.value
             
             await db.commit()
-            
-            # Remove from client if successful
+
+            # Cleanup client
             if download.status == MediaStatus.SUCCESS and torrent_id:
                 client = get_client()
                 if client:
-                    try:
-                        removed = await client.remove_torrent(torrent_id)
-                        if removed:
-                            logger.info(f"--> [PROCESSOR] Torrent {torrent_id} removed from client.")
-                        else:
-                            logger.warning(f"--> [PROCESSOR] Failed to remove torrent {torrent_id} from client.")
-                    except Exception as e:
-                        logger.error(f"--> [PROCESSOR] Error removing torrent: {e}")
+                    await client.remove_torrent(torrent_id)
 
-        except SQLAlchemyError as sae:
-            logger.error(f"--> [PROCESSOR] Database error: {sae}")
-            # If we fail here, we can't update status in DB
         except Exception as e:
-            logger.error(f"--> [PROCESSOR] Global error during processing: {e}", exc_info=True)
-            try:
-                download.status = MediaStatus.ERROR.value
-                await db.commit()
-            except:
-                pass
+            logger.error(f"--> [PROCESSOR] Global error: {e}", exc_info=True)
+            download.status = MediaStatus.ERROR.value
+            await db.commit()
 
 processor = Processor()
