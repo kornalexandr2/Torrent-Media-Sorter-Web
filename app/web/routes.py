@@ -503,43 +503,57 @@ async def scan_form(request: Request, user: User = Depends(get_current_user)):
     <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
             <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                <h3 class="text-xl font-bold text-gray-800">Ручное сканирование</h3>
+                <h3 class="text-xl font-bold text-gray-800">Сканирование папки</h3>
                 <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             
-            <div id="scan-content" class="p-6">
-                <p class="text-sm text-gray-600 mb-4 font-mono bg-gray-50 p-2 rounded">Папка: {download_dir}</p>
-                <div class="space-y-4">
-                    <p class="text-sm text-gray-700">Начать поиск новых файлов и поиск пустых папок в настроенной директории?</p>
-                    <div class="flex justify-end gap-3">
-                        <button type="button" onclick="closeModal()" 
-                                class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 transition">
-                            Отмена
-                        </button>
-                        <button hx-post="/scan" 
-                                hx-target="#scan-content" 
-                                class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition">
-                            Начать поиск
-                        </button>
+            <form hx-post="/scan" hx-target="#scan-content" class="p-6">
+                <div id="scan-content">
+                    <p class="text-sm text-gray-600 mb-4 font-mono bg-gray-50 p-2 rounded">Папка: {download_dir}</p>
+                    <div class="space-y-6">
+                        <p class="text-sm text-gray-700">Начать поиск новых файлов и пустых папок в настроенной директории?</p>
+                        
+                        <div class="p-4 bg-blue-50 border border-blue-100 rounded-xl">
+                            <label class="flex items-start gap-3 cursor-pointer">
+                                <input type="checkbox" name="only_read" value="true" class="mt-1 w-4 h-4 text-blue-600 rounded focus:ring-blue-500">
+                                <div>
+                                    <span class="block text-sm font-bold text-blue-900">Только прочитать папку</span>
+                                    <span class="block text-xs text-blue-700 mt-1">Новые объекты будут добавлены в список со статусом PENDING. Автоматическое распознавание и переименование запускаться не будет.</span>
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="flex justify-end gap-3">
+                            <button type="button" onclick="closeModal()" 
+                                    class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 transition font-semibold">
+                                Отмена
+                            </button>
+                            <button type="submit" 
+                                    class="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-md active:scale-95">
+                                Начать поиск
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
     """
 
 @router.post("/scan", response_class=HTMLResponse)
-async def run_manual_scan(request: Request, user: User = Depends(get_current_user)):
+async def run_manual_scan(request: Request, only_read: bool = Form(False), user: User = Depends(get_current_user)):
     if not user: return Response("Unauthorized", status_code=401)
-    await sys_logger.log(1, "USER", "Запущено ручное сканирование папки")
+    await sys_logger.log(1, "USER", f"Запущено {'быстрое ' if only_read else 'полное '} сканирование папки")
     path = config_manager.get('PATHS', 'downloads_folder')
     if not path or not os.path.exists(path):
         return f'<div class="text-red-500 font-bold p-4">Ошибка: Папка {path} не найдена</div>'
     
-    # Return loading state that immediately triggers the actual scan
+    # Передаем параметр only_read в следующий этап
+    params = f"?only_read=true" if only_read else ""
+    
     return f"""
     <div class="flex flex-col items-center justify-center py-12 space-y-4" 
-         hx-get="/scan/perform" 
+         hx-get="/scan/perform{params}" 
          hx-trigger="load" 
          hx-target="#scan-content">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
@@ -556,22 +570,43 @@ def is_folder_empty_recursive(path: Path):
     return True
 
 @router.get("/scan/perform", response_class=HTMLResponse)
-async def perform_scan_and_return_results(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+async def perform_scan_and_return_results(request: Request, only_read: bool = False, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return Response("Unauthorized", status_code=401)
     scan_path = config_manager.get('PATHS', 'downloads_folder')
     path = Path(scan_path).resolve()
     
     results = {"processed": [], "empty_folders": []}
     
-    # 1. Process items
+    # 1. Получаем текущие пути из БД для проверки дубликатов
+    stmt_seen = select(Download.original_path)
+    res_seen = await db.execute(stmt_seen)
+    seen_paths = set(res_seen.scalars().all())
+    
+    # 2. Process items
     try:
         items = list(path.iterdir())
         for item in items:
             if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
-                await processor.process_torrent(db, torrent_name=item.name, torrent_dir=str(item.parent))
-                results["processed"].append(item.name)
+                if str(item) in seen_paths:
+                    continue
+                
+                if only_read:
+                    # Просто добавляем в БД без обработки
+                    new_dl = Download(
+                        torrent_name=item.name,
+                        original_path=str(item),
+                        status=MediaStatus.PENDING.value
+                    )
+                    db.add(new_dl)
+                    results["processed"].append(item.name)
+                else:
+                    # Полная обработка
+                    await processor.process_torrent(db, torrent_name=item.name, torrent_dir=str(item.parent))
+                    results["processed"].append(item.name)
         
-        # 2. Find empty folders (Top-level only)
+        await db.commit()
+        
+        # 3. Find empty folders (Top-level only) - всегда полезно при сканировании
         for item in path.iterdir():
             if item.is_dir() and is_folder_empty_recursive(item):
                 results["empty_folders"].append(str(item))
