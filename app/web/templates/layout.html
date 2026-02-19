@@ -6,15 +6,6 @@
     <title>{% block title %}Torrent Media Sorter{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <script>
-        // Простейшая отладка для подтверждения вставки
-        document.addEventListener('htmx:afterSwap', function(evt) {
-            if (evt.detail.xhr.status === 200) {
-                console.log('HTMX: Вставлено контента (байт):', evt.detail.xhr.responseText.length);
-                console.log('HTMX: Цель вставки:', evt.detail.target.tagName);
-            }
-        });
-    </script>
     <style>
         .htmx-indicator { display: none; }
         .htmx-request .htmx-indicator { display: flex; }
