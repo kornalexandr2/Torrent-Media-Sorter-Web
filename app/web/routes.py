@@ -240,7 +240,11 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
             "moves": moves,
             "user": user
         })
-        _log.info(f"--> [INFO] Template rendered for ID {download_id}, body length: {len(response.body) if response.body else 0}")
+        
+        # Принудительный рендеринг для замера длины
+        content_len = len(response.body) if hasattr(response, 'body') and response.body else 0
+        await sys_logger.log(3, "SYSTEM", f"DEBUG: Template info_modal.html rendered, approx size: {content_len}")
+        
         return response
     except Exception as e:
         _log.error(f"--> [INFO] Error in download_info (ID {download_id}): {str(e)}", exc_info=True)
