@@ -93,7 +93,10 @@
         document.body.addEventListener('htmx:afterSettle', function(event) {
             console.log('[HTMX] afterSettle:', event.detail.target.id);
             if (event.detail.target.id === 'modal-placeholder') {
-                // Небольшая задержка для гарантии рендеринга
+                // Проверяем содержимое modal-placeholder
+                console.log('[MODAL] modal-placeholder.innerHTML:', document.getElementById('modal-placeholder')?.innerHTML.substring(0, 200));
+                
+                // Увеличенная задержка для гарантии рендеринга
                 setTimeout(function() {
                     const modal = document.getElementById('modal-container');
                     if (modal) {
@@ -101,8 +104,9 @@
                         document.body.classList.add('modal-open');
                     } else {
                         console.warn('[MODAL] Modal not found in DOM');
+                        console.log('[MODAL] modal-placeholder children:', document.getElementById('modal-placeholder')?.children);
                     }
-                }, 50);
+                }, 200);
             }
         });
 
