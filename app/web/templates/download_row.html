@@ -1,0 +1,77 @@
+<tr id="row-{{ d.id }}" class="hover:bg-gray-50 transition" {% if oob %}hx-swap-oob="true"{% endif %}>
+    <td class="px-6 py-4 text-xs text-gray-500 font-mono">
+        {{ d.created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+    </td>
+    <td class="px-6 py-4">
+        <div class="font-medium text-gray-900 max-w-md truncate" title="{{ d.torrent_name }}">
+            {{ d.torrent_name }}
+        </div>
+        <div class="text-xs text-gray-400 font-mono truncate max-w-md">
+            {{ d.original_path }}
+        </div>
+    </td>
+    <td class="px-6 py-4">
+        {% if d.detected_title %}
+            <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600 border border-slate-200 uppercase font-bold">
+                    {{ d.metadata_source }}
+                </span>
+                <span class="font-semibold text-gray-800">{{ d.detected_title }}</span>
+                <span class="text-gray-400 text-sm">({{ d.detected_year }})</span>
+            </div>
+            <div class="text-xs text-blue-500 font-medium">
+                {{ d.media_type }}
+            </div>
+        {% else %}
+            <span class="text-gray-400 italic text-sm">Not resolved</span>
+        {% endif %}
+    </td>
+    <td class="px-6 py-4">
+        {% set status_class = {
+            'SUCCESS': 'bg-green-100 text-green-700 border-green-200',
+            'PENDING': 'bg-blue-100 text-blue-700 border-blue-200',
+            'ERROR': 'bg-red-100 text-red-700 border-red-200',
+            'MANUAL_REQUIRED': 'bg-yellow-100 text-yellow-700 border-yellow-200',
+            'REVERTED': 'bg-gray-100 text-gray-600 border-gray-200'
+        } %}
+        <span class="px-3 py-1 rounded-full text-xs font-bold border {{ status_class.get(d.status, 'bg-gray-100 text-gray-600 border-gray-200') }}">
+            {{ d.status }}
+        </span>
+    </td>
+    <td class="px-6 py-4 text-right">
+        <div class="flex justify-end gap-2">
+            <button hx-get="/info/{{ d.id }}" 
+                    hx-target="#modal-placeholder" 
+                    hx-swap="innerHTML"
+                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" 
+                    title="Информация">
+                <span class="text-lg pointer-events-none">ℹ️</span>
+            </button>
+            
+            <button hx-post="/retry/{{ d.id }}" 
+                    hx-target="body" 
+                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" 
+                    title="Retry">
+                <span class="text-lg pointer-events-none">🔄</span>
+            </button>
+
+            <button hx-get="/fix-match/{{ d.id }}" 
+                    hx-target="#modal-placeholder" 
+                    hx-swap="innerHTML"
+                    class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer" 
+                    title="Fix Match">
+                <span class="text-lg pointer-events-none">🛠</span>
+            </button>
+
+            {% if d.status == 'SUCCESS' %}
+            <button hx-post="/undo/{{ d.id }}" 
+                    hx-target="body" 
+                    hx-confirm="Вы уверены, что хотите откатить все операции для этого объекта?"
+                    class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer" 
+                    title="Undo">
+                <span class="text-lg pointer-events-none">↩️</span>
+            </button>
+            {% endif %}
+        </div>
+    </td>
+</tr>

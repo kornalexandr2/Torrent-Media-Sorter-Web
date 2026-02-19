@@ -316,6 +316,28 @@ async def run_fix_match_task(download_id: int, media_type: str, source: str, sou
                     download_id=download_id
                 )
 
+@router.get("/api/status-updates", response_class=HTMLResponse)
+async def api_status_updates(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return Response("Unauthorized", status_code=401)
+    
+    # Получаем последние 50 записей (те же, что на дашборде)
+    stmt = select(Download).order_by(desc(Download.created_at)).limit(50)
+    result = await db.execute(stmt)
+    downloads = result.scalars().all()
+    
+    html_parts = []
+    for d in downloads:
+        # Для упрощения мы возвращаем все 50 строк, но в формате OOB
+        # HTMX сам найдет элементы по id="row-X" и заменит их
+        part = templates.get_template("download_row.html").render({
+            "request": request,
+            "d": d,
+            "oob": True
+        })
+        html_parts.append(part)
+    
+    return "".join(html_parts)
+
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request, user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
