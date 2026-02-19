@@ -275,46 +275,85 @@ async def fix_match_apply(
         await db.commit()
 
     background_tasks.add_task(run_fix_match_task, download_id, media_type, source, source_id)
+    
     if request.headers.get("HX-Request"):
-        return Response(headers={"HX-Redirect": "/"})
+        # Возвращаем OOB-обновление для строки (ставим PENDING) и закрываем модальное окно
+        from .models import Download
+        stmt = select(Download).where(Download.id == download_id)
+        res = await db.execute(stmt)
+        d = res.scalar_one_or_none()
+        
+        row_html = templates.get_template("download_row.html").render({
+            "request": request,
+            "d": d,
+            "oob": True
+        })
+        
+        return HTMLResponse(
+            content=row_html, 
+            headers={
+                "HX-Trigger": "closeModal"
+            }
+        )
     return RedirectResponse(url="/", status_code=303)
 
 async def run_fix_match_task(download_id: int, media_type: str, source: str, source_id: str):
     async with AsyncSessionLocal() as db:
-        # 1. Undo previous if successful/failed
-        await file_ops.undo_download(download_id, db)
-        
-        # 2. Get the download record again
-        stmt = select(Download).where(Download.id == download_id)
-        res = await db.execute(stmt)
-        download = res.scalar_one_or_none()
-        
-        if download and os.path.exists(download.original_path):
-            # 3. Resolve new metadata
-            from ..core.metadata import metadata_manager
+        try:
+            # 1. Undo previous if successful/failed
+            from ..core.operations import file_ops
+            from ..core.processor import processor
+            await file_ops.undo_download(download_id, db)
             
-            if source == "none":
-                # Manual mode
-                api_data = {
-                    'title': source_id or Path(download.original_path).name,
-                    'titles': {'origin': source_id or Path(download.original_path).name},
-                    'year': '',
-                    'type': media_type,
-                    'source': 'manual',
-                    'source_id': ''
-                }
+            # 2. Get the download record again
+            stmt = select(Download).where(Download.id == download_id)
+            res = await db.execute(stmt)
+            download = res.scalar_one_or_none()
+            
+            if download and os.path.exists(download.original_path):
+                # 3. Resolve new metadata
+                from ..core.metadata import metadata_manager
+                
+                if source == "none":
+                    # Manual mode
+                    api_data = {
+                        'title': source_id or Path(download.original_path).name,
+                        'titles': {'origin': source_id or Path(download.original_path).name},
+                        'year': '',
+                        'type': media_type,
+                        'source': 'manual',
+                        'source_id': ''
+                    }
+                else:
+                    api_data = await metadata_manager.resolve_by_id(source, source_id, media_type)
+                
+                if api_data:
+                    p = Path(download.original_path)
+                    await processor.process_torrent(
+                        db, 
+                        torrent_name=p.name, 
+                        torrent_dir=str(p.parent),
+                        override_meta=api_data,
+                        download_id=download_id
+                    )
+                else:
+                    download.status = "ERROR"
+                    await db.commit()
             else:
-                api_data = await metadata_manager.resolve_by_id(source, source_id, media_type)
-            
-            if api_data:
-                p = Path(download.original_path)
-                await processor.process_torrent(
-                    db, 
-                    torrent_name=p.name, 
-                    torrent_dir=str(p.parent),
-                    override_meta=api_data,
-                    download_id=download_id
-                )
+                if download:
+                    download.status = "ERROR"
+                    await db.commit()
+        except Exception as e:
+            logging.getLogger('TorrentMediaSorter').error(f"--> [FIX MATCH] Background task failed: {e}", exc_info=True)
+            # Try to set error status
+            try:
+                stmt = select(Download).where(Download.id == download_id)
+                res = await db.execute(stmt)
+                d = res.scalar_one_or_none()
+                if d:
+                    d.status = "ERROR"
+                    await db.commit()
+            except: pass
 
 @router.get("/api/status-updates", response_class=HTMLResponse)
 async def api_status_updates(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):

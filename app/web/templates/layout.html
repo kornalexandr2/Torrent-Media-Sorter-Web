@@ -90,6 +90,11 @@
                 closeModal();
             }
         });
+
+        // Слушатель для автоматического закрытия
+        document.body.addEventListener('closeModal', function() {
+            closeModal();
+        });
     </script>
 </body>
 </html>
