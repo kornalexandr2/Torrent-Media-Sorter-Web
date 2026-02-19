@@ -75,48 +75,13 @@
             }
         }
 
-        // Отладка HTMX событий
-        document.body.addEventListener('htmx:beforeRequest', function(event) {
-            console.log('[HTMX] beforeRequest:', event.detail.elt.id, '->', event.detail.requestConfig.path);
-            
-            // Защита от автообновления, если открыто модальное окно
-            if (document.getElementById('modal-container')) {
-                if (event.detail.elt.id === 'downloads-container') {
-                    event.preventDefault();
-                    console.log('[HTMX] Skipping auto-refresh - modal is open');
-                }
-            }
-        });
-        
-        document.body.addEventListener('htmx:afterSwap', function(event) {
-            console.log('[HTMX] afterSwap target:', event.detail.target.id);
-            console.log('[HTMX] response status:', event.detail.xhr.status);
-            const resp = event.detail.xhr.responseText;
-            console.log('[HTMX] response text length:', resp ? resp.length : 0);
-            console.log('[HTMX] response preview:', resp ? resp.substring(0, 100) + '...' : 'empty');
-            
-            if (event.detail.xhr.status !== 200) {
-                console.error('[HTMX] Non-200 response received!');
-            }
-        });
-        
         document.body.addEventListener('htmx:afterSettle', function(event) {
-            console.log('[HTMX] afterSettle:', event.detail.target.id);
             if (event.detail.target.id === 'modal-placeholder') {
-                // Проверяем содержимое modal-placeholder
-                console.log('[MODAL] modal-placeholder.innerHTML:', document.getElementById('modal-placeholder')?.innerHTML.substring(0, 200));
-                
-                // Увеличенная задержка для гарантии рендеринга
                 setTimeout(function() {
-                    const modal = document.getElementById('modal-container');
-                    if (modal) {
-                        console.log('[MODAL] Modal found, adding modal-open class');
+                    if (document.getElementById('modal-container')) {
                         document.body.classList.add('modal-open');
-                    } else {
-                        console.warn('[MODAL] Modal not found in DOM');
-                        console.log('[MODAL] modal-placeholder children:', document.getElementById('modal-placeholder')?.children);
                     }
-                }, 200);
+                }, 100);
             }
         });
 

@@ -234,22 +234,14 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
         res_moves = await db.execute(stmt_moves)
         moves = res_moves.scalars().all()
         
-        # ВРЕМЕННО: Прямой возврат строки как в работающем /scan
-        html_content = f"""
-        <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden p-6">
-                <h3 class="text-xl font-bold mb-4 text-gray-800">Информация: {download.torrent_name}</h3>
-                <p class="text-sm text-gray-600 mb-6">Это тестовое окно. Если вы его видите, значит проблема была в TemplateResponse.</p>
-                <div class="flex justify-end">
-                    <button onclick="closeModal()" class="px-6 py-2 bg-gray-800 text-white rounded-xl font-bold">Закрыть</button>
-                </div>
-            </div>
-        </div>
-        """
-        await sys_logger.log(3, "SYSTEM", f"DEBUG: Returning direct string for ID {download_id}")
-        return HTMLResponse(content=html_content)
+        return templates.TemplateResponse("info_modal.html", {
+            "request": request, 
+            "download": download,
+            "moves": moves,
+            "user": user
+        })
     except Exception as e:
-        _log.error(f"--> [INFO] Error in download_info (ID {download_id}): {str(e)}", exc_info=True)
+        logging.getLogger('TorrentMediaSorter').error(f"--> [INFO] Error in download_info (ID {download_id}): {str(e)}", exc_info=True)
         return HTMLResponse(content=f"<div class='p-4 text-red-500'>Ошибка сервера: {str(e)}</div>", status_code=500)
 
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
