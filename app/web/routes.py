@@ -437,7 +437,7 @@ async def scan_form(request: Request, user: User = Depends(get_current_user)):
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col">
             <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                 <h3 class="text-xl font-bold text-gray-800">Ручное сканирование</h3>
-                <button onclick="document.getElementById('modal-container').remove()" class="text-gray-400 hover:text-gray-600">&times;</button>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             
             <div id="scan-content" class="p-6">
@@ -445,7 +445,7 @@ async def scan_form(request: Request, user: User = Depends(get_current_user)):
                 <div class="space-y-4">
                     <p class="text-sm text-gray-700">Начать поиск новых файлов и поиск пустых папок в настроенной директории?</p>
                     <div class="flex justify-end gap-3">
-                        <button type="button" onclick="document.getElementById('modal-container').remove()" 
+                        <button type="button" onclick="closeModal()" 
                                 class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-700 transition">
                             Отмена
                         </button>

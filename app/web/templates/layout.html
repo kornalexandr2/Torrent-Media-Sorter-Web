@@ -11,6 +11,14 @@
         .htmx-request .htmx-indicator { display: flex; }
         .htmx-request.htmx-indicator { display: flex; }
         .htmx-request .htmx-indicator-hide { opacity: 0; }
+        
+        /* Modal management */
+        body.modal-open { overflow: hidden; }
+        #modal-container { animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -44,5 +52,27 @@
     <footer class="text-center py-8 text-gray-500 text-sm">
         Torrent Media Sorter Web &copy; 2026
     </footer>
+
+    <script>
+        function closeModal() {
+            const modal = document.getElementById('modal-container');
+            if (modal) {
+                modal.remove();
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        document.body.addEventListener('htmx:afterSwap', function(event) {
+            if (event.detail.target.id === 'modal-placeholder' && document.getElementById('modal-container')) {
+                document.body.classList.add('modal-open');
+            }
+        });
+
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
 </body>
 </html>

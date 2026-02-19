@@ -9,7 +9,7 @@
                     <p class="text-xs text-gray-500 font-mono truncate max-w-md">{{ download.torrent_name }}</p>
                 </div>
             </div>
-            <button onclick="document.getElementById('modal-container').remove()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">&times;</button>
+            <button onclick="closeModal()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">&times;</button>
         </div>
 
         <!-- Body (Scrollable) -->
@@ -62,7 +62,7 @@
                 🛠 Исправить
             </button>
             <div class="flex-1"></div>
-            <button onclick="document.getElementById('modal-container').remove()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-lg transition">
+            <button onclick="closeModal()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-lg transition">
                 Закрыть
             </button>
         </div>
