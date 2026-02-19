@@ -11,13 +11,24 @@
         .htmx-request .htmx-indicator { display: flex; }
         .htmx-request.htmx-indicator { display: flex; }
         .htmx-request .htmx-indicator-hide { opacity: 0; }
-        
+
         /* Modal management */
         body.modal-open { overflow: hidden; }
-        #modal-container { animation: fadeIn 0.2s ease-out; }
+        #modal-container { 
+            animation: fadeIn 0.2s ease-out;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+        }
         @keyframes fadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+        
+        /* Важно: modal-placeholder должен позволять контенту быть позиционированным fixed */
+        #modal-placeholder { 
+            position: static;
+            min-height: 0;
         }
     </style>
 </head>
@@ -62,9 +73,36 @@
             }
         }
 
+        // Отладка HTMX событий
+        document.body.addEventListener('htmx:beforeRequest', function(event) {
+            console.log('[HTMX] beforeRequest:', event.detail.elt.id, '->', event.detail.requestConfig.path);
+            
+            // Защита от автообновления, если открыто модальное окно
+            if (document.getElementById('modal-container')) {
+                if (event.detail.elt.id === 'downloads-container') {
+                    event.preventDefault();
+                    console.log('[HTMX] Skipping auto-refresh - modal is open');
+                }
+            }
+        });
+        
         document.body.addEventListener('htmx:afterSwap', function(event) {
-            if (event.detail.target.id === 'modal-placeholder' && document.getElementById('modal-container')) {
-                document.body.classList.add('modal-open');
+            console.log('[HTMX] afterSwap:', event.detail.target.id);
+        });
+        
+        document.body.addEventListener('htmx:afterSettle', function(event) {
+            console.log('[HTMX] afterSettle:', event.detail.target.id);
+            if (event.detail.target.id === 'modal-placeholder') {
+                // Небольшая задержка для гарантии рендеринга
+                setTimeout(function() {
+                    const modal = document.getElementById('modal-container');
+                    if (modal) {
+                        console.log('[MODAL] Modal found, adding modal-open class');
+                        document.body.classList.add('modal-open');
+                    } else {
+                        console.warn('[MODAL] Modal not found in DOM');
+                    }
+                }, 50);
             }
         });
 
