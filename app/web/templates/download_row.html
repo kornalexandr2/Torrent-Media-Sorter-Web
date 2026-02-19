@@ -26,7 +26,7 @@
             <span class="text-gray-400 italic text-sm">Not resolved</span>
         {% endif %}
     </td>
-    <td class="px-6 py-4 w-40">
+    <td class="px-6 py-4 w-40 text-left">
         {% set status_class = {
             'SUCCESS': 'bg-green-100 text-green-700 border-green-200',
             'PENDING': 'bg-blue-100 text-blue-700 border-blue-200',
@@ -34,35 +34,35 @@
             'MANUAL_REQUIRED': 'bg-yellow-100 text-yellow-700 border-yellow-200',
             'REVERTED': 'bg-gray-100 text-gray-600 border-gray-200'
         } %}
-        <div class="flex justify-center">
+        <div class="flex justify-start">
             <span class="inline-block w-32 text-center px-3 py-1 rounded-full text-xs font-bold border {{ status_class.get(d.status, 'bg-gray-100 text-gray-600 border-gray-200') }}">
                 {{ d.status }}
             </span>
         </div>
     </td>
-    <td class="px-6 py-4 text-right w-48">
-        <div class="flex justify-end gap-2 min-w-[160px]">
+    <td class="px-6 py-4 text-left w-56">
+        <div class="flex justify-start items-center gap-1.5">
             <button hx-get="/info/{{ d.id }}" 
                     hx-target="#modal-placeholder" 
                     hx-swap="innerHTML"
-                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" 
+                    class="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer" 
                     title="Информация">
-                <span class="text-lg pointer-events-none">ℹ️</span>
+                <span class="text-xl pointer-events-none">ℹ️</span>
             </button>
             
             <button hx-post="/retry/{{ d.id }}" 
                     hx-target="body" 
-                    class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer" 
+                    class="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer" 
                     title="Retry">
-                <span class="text-lg pointer-events-none">🔄</span>
+                <span class="text-xl pointer-events-none">🔄</span>
             </button>
 
-            <button hx-get="/fix-match/{{ download.id if download else d.id }}" 
+            <button hx-get="/fix-match/{{ d.id }}" 
                     hx-target="#modal-placeholder" 
                     hx-swap="innerHTML"
-                    class="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer" 
+                    class="p-2.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition cursor-pointer" 
                     title="Fix Match">
-                <span class="text-lg pointer-events-none">🛠</span>
+                <span class="text-xl pointer-events-none">🛠</span>
             </button>
 
             <div class="w-10 flex justify-center">
@@ -70,9 +70,9 @@
                 <button hx-post="/undo/{{ d.id }}" 
                         hx-target="body" 
                         hx-confirm="Вы уверены, что хотите откатить все операции для этого объекта?"
-                        class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer" 
+                        class="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition cursor-pointer" 
                         title="Undo">
-                    <span class="text-lg pointer-events-none">↩️</span>
+                    <span class="text-xl pointer-events-none">↩️</span>
                 </button>
                 {% endif %}
             </div>
