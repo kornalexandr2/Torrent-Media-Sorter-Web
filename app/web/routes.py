@@ -326,15 +326,18 @@ async def api_status_updates(request: Request, db: AsyncSession = Depends(get_db
     downloads = result.scalars().all()
     
     html_parts = []
+    status_counts = {}
     for d in downloads:
-        # Для упрощения мы возвращаем все 50 строк, но в формате OOB
-        # HTMX сам найдет элементы по id="row-X" и заменит их
+        status_counts[d.status] = status_counts.get(d.status, 0) + 1
         part = templates.get_template("download_row.html").render({
             "request": request,
             "d": d,
             "oob": True
         })
         html_parts.append(part)
+    
+    # Отладочный лог для системного журнала
+    await sys_logger.log(3, "SYSTEM", f"DEBUG: Polling status updates. Found counts: {status_counts}")
     
     return "".join(html_parts)
 
