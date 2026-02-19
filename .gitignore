@@ -5,5 +5,4 @@ venv/
 .env
 config/
 data/
-qwen3/
-gemini/
+DEVELOPE/
