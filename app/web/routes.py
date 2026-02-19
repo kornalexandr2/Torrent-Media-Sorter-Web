@@ -119,13 +119,13 @@ async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)
     for d in downloads:
         # 3. Check if path exists
         if not os.path.exists(d.original_path):
-            logger.info(f"--> [REFRESH] Path not found, marking for deletion: {d.original_path}")
+            logging.getLogger('TorrentMediaSorter').info(f"--> [REFRESH] Path not found, marking for deletion: {d.original_path}")
             to_delete_ids.append(d.id)
             continue
             
         # 4. Check for duplicates
         if d.original_path in seen_paths:
-            logger.info(f"--> [REFRESH] Duplicate found, marking for deletion: {d.original_path}")
+            logging.getLogger('TorrentMediaSorter').info(f"--> [REFRESH] Duplicate found, marking for deletion: {d.original_path}")
             to_delete_ids.append(d.id)
             continue
         
@@ -138,7 +138,7 @@ async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)
         # Delete downloads
         await db.execute(delete(Download).where(Download.id.in_(to_delete_ids)))
         await db.commit()
-        logger.info(f"--> [REFRESH] Deleted {len(to_delete_ids)} orphaned/duplicate records")
+        logging.getLogger('TorrentMediaSorter').info(f"--> [REFRESH] Deleted {len(to_delete_ids)} orphaned/duplicate records")
 
     # 6. Scan for new items in download folder if it exists
     if download_dir and os.path.exists(download_dir):
@@ -146,7 +146,7 @@ async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)
         for item in path.iterdir():
             if item.is_dir() or item.suffix.lower() in ('.mkv', '.avi', '.mp4'):
                 if str(item) not in seen_paths:
-                    logger.info(f"--> [REFRESH] New item found, adding: {item.name}")
+                    logging.getLogger('TorrentMediaSorter').info(f"--> [REFRESH] New item found, adding: {item.name}")
                     new_dl = Download(
                         torrent_name=item.name,
                         original_path=str(item),
@@ -212,12 +212,13 @@ async def run_retry_task(download_id: int):
 
 @router.get("/info/{download_id}", response_class=HTMLResponse)
 async def download_info(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    _log = logging.getLogger('TorrentMediaSorter')
     if not user: 
-        logger.warning(f"--> [INFO] Unauthorized access attempt for ID {download_id}")
+        _log.warning(f"--> [INFO] Unauthorized access attempt for ID {download_id}")
         return Response("Unauthorized", status_code=401)
     
     await sys_logger.log(3, "USER", f"Просмотр информации об объекте {download_id}")
-    logger.info(f"--> [INFO] Rendering info_modal for ID {download_id}")
+    _log.info(f"--> [INFO] Rendering info_modal for ID {download_id}")
     
     try:
         from ..models import FileMove
@@ -226,7 +227,7 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
         download = res.scalar_one_or_none()
         
         if not download:
-            logger.warning(f"--> [INFO] Download ID {download_id} not found")
+            _log.warning(f"--> [INFO] Download ID {download_id} not found")
             return HTMLResponse(content="<div class='p-4 text-red-500'>Объект не найден в БД</div>", status_code=200)
             
         stmt_moves = select(FileMove).where(FileMove.download_id == download_id)
@@ -239,10 +240,10 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
             "moves": moves,
             "user": user
         })
-        logger.info(f"--> [INFO] Template rendered for ID {download_id}, length: {len(response.body) if response.body else 0}")
+        _log.info(f"--> [INFO] Template rendered for ID {download_id}, body length: {len(response.body) if response.body else 0}")
         return response
     except Exception as e:
-        logger.error(f"--> [INFO] Error in download_info (ID {download_id}): {str(e)}", exc_info=True)
+        _log.error(f"--> [INFO] Error in download_info (ID {download_id}): {str(e)}", exc_info=True)
         return HTMLResponse(content=f"<div class='p-4 text-red-500'>Ошибка сервера: {str(e)}</div>", status_code=500)
 
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
@@ -515,7 +516,7 @@ async def perform_scan_and_return_results(request: Request, db: AsyncSession = D
                 results["empty_folders"].append(str(item))
                 
     except Exception as e:
-        logger.error(f"Scan error: {e}")
+        logging.getLogger('TorrentMediaSorter').error(f"Scan error: {e}")
         return f'<div class="text-red-500">Ошибка при сканировании: {e}</div>'
 
     # 3. Render Results
@@ -567,7 +568,7 @@ async def cleanup_folders(request: Request, user: User = Depends(get_current_use
     deleted = 0
     errors = 0
     
-    logger.info(f"--> [CLEANUP] Starting cleanup of {len(folders)} folders")
+    logging.getLogger('TorrentMediaSorter').info(f"--> [CLEANUP] Starting cleanup of {len(folders)} folders")
     
     for folder in folders:
         try:
@@ -575,12 +576,12 @@ async def cleanup_folders(request: Request, user: User = Depends(get_current_use
             if p.exists() and p.is_dir():
                 shutil.rmtree(p)
                 deleted += 1
-                logger.info(f"--> [CLEANUP] Deleted: {p}")
+                logging.getLogger('TorrentMediaSorter').info(f"--> [CLEANUP] Deleted: {p}")
             else:
-                logger.warning(f"--> [CLEANUP] Skip (not a dir or missing): {p}")
+                logging.getLogger('TorrentMediaSorter').warning(f"--> [CLEANUP] Skip (not a dir or missing): {p}")
                 errors += 1
         except Exception as e:
-            logger.error(f"--> [CLEANUP] Error deleting {folder}: {e}")
+            logging.getLogger('TorrentMediaSorter').error(f"--> [CLEANUP] Error deleting {folder}: {e}")
             errors += 1
             
     return f"""
