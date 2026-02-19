@@ -278,7 +278,6 @@ async def fix_match_apply(
     
     if request.headers.get("HX-Request"):
         # Возвращаем OOB-обновление для строки (ставим PENDING) и закрываем модальное окно
-        from ..models import Download
         stmt = select(Download).where(Download.id == download_id)
         res = await db.execute(stmt)
         d = res.scalar_one_or_none()
