@@ -91,7 +91,10 @@
         document.body.addEventListener('htmx:afterSwap', function(event) {
             console.log('[HTMX] afterSwap target:', event.detail.target.id);
             console.log('[HTMX] response status:', event.detail.xhr.status);
-            console.log('[HTMX] response text length:', event.detail.xhr.responseText ? event.detail.xhr.responseText.length : 0);
+            const resp = event.detail.xhr.responseText;
+            console.log('[HTMX] response text length:', resp ? resp.length : 0);
+            console.log('[HTMX] response preview:', resp ? resp.substring(0, 100) + '...' : 'empty');
+            
             if (event.detail.xhr.status !== 200) {
                 console.error('[HTMX] Non-200 response received!');
             }

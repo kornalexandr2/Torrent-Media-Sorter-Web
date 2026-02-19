@@ -32,7 +32,7 @@
 
 <div id="downloads-container" 
      hx-get="/" 
-     hx-trigger="{% if any_pending %}every 10s{% else %}none{% endif %}" 
+     hx-trigger="none" 
      hx-select="#downloads-table-wrapper" 
      hx-target="#downloads-table-wrapper" 
      hx-swap="outerHTML">
