@@ -43,16 +43,18 @@ def render_log(line, lang="ru"):
     
     timestamp, msg = parts[0] + "]", parts[1]
     
+    translated_msg = msg
     if msg.startswith('{'):
         try:
             import json
             log_data = json.loads(msg)
             translated_msg = translator.translate(log_data.get("key"), lang=lang, **log_data.get("params", {}))
-            return f"{timestamp} {translated_msg}"
         except:
-            pass
+            translated_msg = translator.translate(msg, lang=lang)
+    else:
+        translated_msg = translator.translate(msg, lang=lang)
             
-    return f"{timestamp} {translator.translate(msg, lang=lang)}"
+    return f"{timestamp} {translated_msg}"
 
 @pass_context
 def _render_log_wrapper(context, line):

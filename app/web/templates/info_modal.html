@@ -41,15 +41,18 @@
             <!-- Detailed Logs -->
             <div class="space-y-2">
                 <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">{{ _("processing_history") }}</h4>
-                <div class="bg-gray-900 text-green-400 p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-48">
+                <div class="bg-gray-900 text-green-400 p-4 rounded-xl font-mono text-[10px] leading-relaxed overflow-x-auto max-h-64 shadow-inner">
                     {%- if download.logs -%}
                         {%- for line in download.logs.split('\n') -%}
                             {%- if line.strip() -%}
-                                {{ render_log(line) }}
+                                <div class="py-1 border-b border-gray-800 last:border-0 flex gap-2">
+                                    <span class="text-gray-500 shrink-0">{{ line.split('] ')[0] + ']' if '] ' in line else '' }}</span>
+                                    <span class="text-green-300">{{ render_log(line).split('] ', 1)[1] if '] ' in render_log(line) else render_log(line) }}</span>
+                                </div>
                             {%- endif %}
                         {%- endfor -%}
                     {%- else -%}
-                        {{ _("history_empty") }}
+                        <div class="text-gray-500 italic py-2">{{ _("history_empty") }}</div>
                     {%- endif -%}
                 </div>
             </div>
