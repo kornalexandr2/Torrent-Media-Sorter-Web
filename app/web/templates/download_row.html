@@ -20,10 +20,10 @@
                 <span class="text-gray-400 text-sm">({{ d.detected_year }})</span>
             </div>
             <div class="text-xs text-blue-500 font-medium">
-                {{ d.media_type }}
+                {{ _(d.media_type) if d.media_type else "" }}
             </div>
         {% else %}
-            <span class="text-gray-400 italic text-sm">Not resolved</span>
+            <span class="text-gray-400 italic text-sm">{{ _("not_resolved") }}</span>
         {% endif %}
     </td>
     <td class="px-6 py-4 w-40 text-left">
@@ -36,7 +36,7 @@
         } %}
         <div class="flex justify-start">
             <span class="inline-block w-32 text-center px-3 py-1 rounded-full text-xs font-bold border {{ status_class.get(d.status, 'bg-gray-100 text-gray-600 border-gray-200') }}">
-                {{ d.status }}
+                {{ _(d.status.lower()) }}
             </span>
         </div>
     </td>
@@ -46,14 +46,14 @@
                     hx-target="#modal-placeholder" 
                     hx-swap="innerHTML"
                     class="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer" 
-                    title="Информация">
+                    title="{{ _("info") }}">
                 <span class="text-xl pointer-events-none">ℹ️</span>
             </button>
             
             <button hx-post="/retry/{{ d.id }}" 
                     hx-target="body" 
                     class="p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer" 
-                    title="Retry">
+                    title="{{ _("retry") }}">
                 <span class="text-xl pointer-events-none">🔄</span>
             </button>
 
@@ -61,7 +61,7 @@
                     hx-target="#modal-placeholder" 
                     hx-swap="innerHTML"
                     class="p-2.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition cursor-pointer" 
-                    title="Fix Match">
+                    title="{{ _("fix") }}">
                 <span class="text-xl pointer-events-none">🛠</span>
             </button>
 
@@ -69,9 +69,9 @@
                 {% if d.status == 'SUCCESS' %}
                 <button hx-post="/undo/{{ d.id }}" 
                         hx-target="body" 
-                        hx-confirm="Вы уверены, что хотите откатить все операции для этого объекта?"
+                        hx-confirm="{{ _("confirm_undo") }}"
                         class="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition cursor-pointer" 
-                        title="Undo">
+                        title="{{ _("undo") }}">
                     <span class="text-xl pointer-events-none">↩️</span>
                 </button>
                 {% endif %}

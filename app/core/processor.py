@@ -19,17 +19,26 @@ from .logger import sys_logger
 logger = logging.getLogger('TorrentMediaSorter')
 
 class Processor:
-    def _add_log(self, download, message):
+    def _add_log(self, download, key, **kwargs):
         from datetime import datetime
+        import json
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if not download.logs:
-            download.logs = f"[{timestamp}] {message}"
+        
+        # Store as JSON string if there are kwargs, otherwise just the key
+        if kwargs:
+            log_entry = json.dumps({"key": key, "params": kwargs})
         else:
-            download.logs += f"\n[{timestamp}] {message}"
+            log_entry = key
+            
+        message = f"[{timestamp}] {log_entry}"
+        if not download.logs:
+            download.logs = message
+        else:
+            download.logs += f"\n{message}"
 
     async def process_torrent(self, db: AsyncSession, torrent_id: str = None, torrent_name: str = None, torrent_dir: str = None, override_meta: dict = None, download_id: int = None):
         source_type = "USER" if (override_meta or not torrent_id) else "SCRIPT"
-        await sys_logger.log(1, source_type, f"Запуск обработки: {torrent_name}")
+        await sys_logger.log(1, source_type, "log_proc_start", details=f"name: {torrent_name}")
         logger.info(f"--> [PROCESSOR] Processing request: {torrent_name} in {torrent_dir}")
         if not torrent_name or not torrent_dir:
             return
@@ -59,38 +68,38 @@ class Processor:
                     status=MediaStatus.PENDING.value
                 )
                 db.add(download)
-                self._add_log(download, "Объект обнаружен")
+                self._add_log(download, "log_obj_discovered")
             else:
                 download.status = MediaStatus.PENDING.value
                 download.detected_title = None
                 download.detected_year = None
                 download.metadata_source = None
                 download.source_id = None
-                self._add_log(download, "Повторный запуск обработки")
+                self._add_log(download, "log_proc_retry")
                 await db.execute(delete(FileMove).where(FileMove.download_id == download.id))
         
         await db.commit()
 
         try:
-            await sys_logger.log(3, "SYSTEM", f"Анализ типа контента для {p.name}")
+            await sys_logger.log(3, "SYSTEM", "log_detect_type", details=f"name: {p.name}")
             m_type_raw, target_name = scanner.detect_type(p)
             q_name = scanner.clean_search(target_name)
-            self._add_log(download, f"Определен тип: {m_type_raw}, поисковый запрос: {q_name}")
+            self._add_log(download, "log_type_detected", type=m_type_raw, query=q_name)
             
             if override_meta:
                 api_data = override_meta
-                self._add_log(download, f"Использованы ручные метаданные от {api_data.get('source', 'manual')}")
+                self._add_log(download, "log_manual_meta", source=api_data.get('source', 'manual'))
             else:
-                self._add_log(download, "Поиск метаданных в API...")
-                await sys_logger.log(3, "SYSTEM", f"Поиск метаданных для: {q_name}")
+                self._add_log(download, "log_api_search")
+                await sys_logger.log(3, "SYSTEM", "log_api_search", details=f"query: {q_name}")
                 api_data = await metadata_manager.resolve(q_name)
             
             if api_data and 'type' in api_data:
                 m_type = api_data['type']
-                await sys_logger.log(3, "SYSTEM", f"Получены данные от {api_data['source']} для {q_name}")
+                await sys_logger.log(3, "SYSTEM", "log_api_meta_found", details=f"source: {api_data['source']}, query: {q_name}")
             else:
                 m_type = 'tv' if m_type_raw == 'tv' else 'movie'
-                await sys_logger.log(3, "SYSTEM", f"Метаданные не найдены, используем детекцию сканера: {m_type}")
+                await sys_logger.log(3, "SYSTEM", f"DEBUG: Meta not found, using scanner: {m_type}")
 
             type_map = {
                 'movie': MediaType.MOVIE.value,
@@ -116,8 +125,8 @@ class Processor:
                 download.detected_year = api_data['year']
                 download.metadata_source = api_data['source']
                 download.source_id = api_data['source_id']
-                self._add_log(download, f"Метаданные найдены ({api_data['source']}): {download.detected_title}")
-                await sys_logger.log(1, "SYSTEM", f"Метаданные найдены: {download.detected_title}")
+                self._add_log(download, "log_api_meta_found", source=api_data['source'], title=download.detected_title)
+                await sys_logger.log(1, "SYSTEM", "log_api_meta_found", details=f"title: {download.detected_title}")
                 t = download.detected_title
                 folder_name = renamer.sanitize(f"{t} ({api_data['year']})" if (api_data['year'] and m_type in ['movie', 'tv']) else t)
             else:
@@ -166,34 +175,30 @@ class Processor:
                 if await file_ops.transfer_file(str(f), str(target), mode):
                     success_count += 1
                     db.add(FileMove(download_id=download.id, src_path=str(f), dst_path=str(target)))
-                    self._add_log(download, f"Успешно: {f.name} -> {target.name}")
-                    await sys_logger.log(3, "SYSTEM", f"Файл перенесен: {f.name}")
+                    self._add_log(download, "log_transfer_ok", src=f.name, dst=target.name)
+                    await sys_logger.log(3, "SYSTEM", "log_move_success", details=f"name: {f.name}")
                 else:
-                    self._add_log(download, f"ОШИБКА: {f.name}")
-                    await sys_logger.log(2, "SYSTEM", f"Ошибка переноса: {f.name}")
+                    self._add_log(download, "log_transfer_fail", name=f.name)
+                    await sys_logger.log(2, "SYSTEM", "log_transfer_error", details=f"name: {f.name}")
 
             if success_count > 0:
                 download.status = MediaStatus.SUCCESS.value
-                self._add_log(download, f"Завершено. Файлов: {success_count}")
-                await sys_logger.log(1, "SYSTEM", f"Успешно обработано: {torrent_name}")
+                self._add_log(download, "log_proc_complete", count=success_count)
+                await sys_logger.log(1, "SYSTEM", "done", details=f"name: {torrent_name}")
                 
-                type_ru = "Фильм"
-                if m_type == 'tv': type_ru = "Сериал"
-                elif m_type == 'game': type_ru = "Игра"
-                elif m_type == 'software': type_ru = "Программа"
-                elif m_type == 'other': type_ru = "Файл"
+                type_key = m_type if m_type in ['movie', 'tv', 'game', 'software', 'other'] else 'other'
 
                 try:
                     await notifier.send_telegram({
                         'title': download.detected_title or torrent_name,
                         'year': download.detected_year or '',
-                        'status': 'Готово',
-                        'type_name': type_ru,
+                        'status': 'done',
+                        'type_name': type_key,
                         'original_name': torrent_name
                     })
                 except: pass
             else:
-                self._add_log(download, "Файлы не перенесены (не найдены медиа-файлы или ошибка доступа)")
+                self._add_log(download, "log_proc_no_files")
                 download.status = MediaStatus.ERROR.value
             
             await db.commit()
@@ -202,8 +207,8 @@ class Processor:
                 if client: await client.remove_torrent(torrent_id)
 
         except Exception as e:
-            self._add_log(download, f"КРИТИЧЕСКАЯ ОШИБКА: {str(e)}")
-            await sys_logger.log(2, "SYSTEM", f"Критическая ошибка: {str(e)}")
+            self._add_log(download, "log_proc_critical", error=str(e))
+            await sys_logger.log(2, "SYSTEM", "log_proc_critical", details=f"error: {str(e)}")
             download.status = MediaStatus.ERROR.value
             await db.commit()
 

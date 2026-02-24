@@ -1,23 +1,23 @@
 {% extends "layout.html" %}
 
-{% block title %}Settings - Torrent Media Sorter{% endblock %}
+{% block title %}{{ _("settings") }} - Torrent Media Sorter{% endblock %}
 
 {% block content %}
 <div class="max-w-5xl mx-auto">
     <div class="mb-8 flex justify-between items-end">
         <div>
-            <h1 class="text-3xl font-bold text-gray-800">Настройки</h1>
-            <p class="text-gray-500 mt-2">Конфигурация системы, API ключей и уведомлений.</p>
+            <h1 class="text-3xl font-bold text-gray-800">{{ _("settings_title") }}</h1>
+            <p class="text-gray-500 mt-2">{{ _("settings_subtitle") }}</p>
         </div>
     </div>
 
     <!-- TABS NAVIGATION -->
     <div class="flex flex-wrap gap-2 mb-6 border-b border-gray-200">
-        <button onclick="showTab('tab-general')" class="tab-btn active px-6 py-3 text-sm font-bold border-b-2 transition duration-200" data-tab="tab-general">Основные</button>
-        <button onclick="showTab('tab-api')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-api">API & Маски</button>
-        <button onclick="showTab('tab-telegram')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-telegram">Уведомления</button>
-        <button onclick="showTab('tab-client')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-client">Клиент</button>
-        <button onclick="showTab('tab-system')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-system">Система</button>
+        <button onclick="showTab('tab-general')" class="tab-btn active px-6 py-3 text-sm font-bold border-b-2 transition duration-200" data-tab="tab-general">{{ _("tab_general") }}</button>
+        <button onclick="showTab('tab-api')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-api">{{ _("tab_api") }}</button>
+        <button onclick="showTab('tab-telegram')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-telegram">{{ _("tab_telegram") }}</button>
+        <button onclick="showTab('tab-client')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-client">{{ _("tab_client") }}</button>
+        <button onclick="showTab('tab-system')" class="tab-btn px-6 py-3 text-sm font-bold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition duration-200" data-tab="tab-system">{{ _("tab_system") }}</button>
     </div>
 
     <form action="/settings/save" method="POST" class="space-y-6">
@@ -25,36 +25,36 @@
         <!-- TAB: GENERAL -->
         <div id="tab-general" class="tab-content space-y-6">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Пути и Режимы</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("paths_and_modes") }}</div>
                 <div class="p-6 space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="md:col-span-2">
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Папка загрузок (откуда сканировать)</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("downloads_folder") }}</label>
                             <div class="flex gap-3">
                                 <input type="text" id="downloads_folder_input" name="PATHS.downloads_folder" value="{{ config.PATHS.downloads_folder or '' }}" class="flex-1 px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                                 <div hx-get="/api/client/path" hx-trigger="load">
-                                    <div class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg animate-pulse">Загрузка...</div>
+                                    <div class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg animate-pulse">{{ _("loading") }}</div>
                                 </div>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для фильмов</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("movies_folder") }}</label>
                             <input type="text" name="PATHS.movies_folder" value="{{ config.PATHS.movies_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для сериалов</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("series_folder") }}</label>
                             <input type="text" name="PATHS.series_folder" value="{{ config.PATHS.series_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Режим переноса</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("transfer_mode") }}</label>
                             <select name="RENAMING.mode" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
-                                <option value="move" {% if config.RENAMING.mode == 'move' %}selected{% endif %}>Перемещение (Удалить оригинал)</option>
-                                <option value="copy" {% if config.RENAMING.mode == 'copy' %}selected{% endif %}>Копирование (Оставить оригинал)</option>
-                                <option value="hardlink" {% if config.RENAMING.mode == 'hardlink' %}selected{% endif %}>Hardlink (Рекомендуется)</option>
+                                <option value="move" {% if config.RENAMING.mode == 'move' %}selected{% endif %}>{{ _("move_mode") }}</option>
+                                <option value="copy" {% if config.RENAMING.mode == 'copy' %}selected{% endif %}>{{ _("copy_mode") }}</option>
+                                <option value="hardlink" {% if config.RENAMING.mode == 'hardlink' %}selected{% endif %}>{{ _("hardlink_mode") }}</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Папка для прочего (Other)</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("other_folder") }}</label>
                             <input type="text" name="PATHS.other_folder" value="{{ config.PATHS.other_folder or '' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                         </div>
                     </div>
@@ -63,66 +63,66 @@
 
             <!-- RENAMING BLOCK -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Настройки переименования</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("renaming_settings") }}</div>
                 <div class="p-6 space-y-8">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Язык переименования</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("renaming_lang") }}</label>
                             <select name="RENAMING.rename_mode" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
-                                <option value="ru" {% if config.RENAMING.rename_mode == 'ru' %}selected{% endif %}>Русский</option>
-                                <option value="en" {% if config.RENAMING.rename_mode == 'en' %}selected{% endif %}>Английский</option>
-                                <option value="origin" {% if config.RENAMING.rename_mode == 'origin' %}selected{% endif %}>Оригинальный</option>
-                                <option value="no_change" {% if config.RENAMING.rename_mode == 'no_change' %}selected{% endif %}>Не изменять</option>
+                                <option value="ru" {% if config.RENAMING.rename_mode == 'ru' %}selected{% endif %}>{{ _("lang_ru") }}</option>
+                                <option value="en" {% if config.RENAMING.rename_mode == 'en' %}selected{% endif %}>{{ _("lang_en") }}</option>
+                                <option value="origin" {% if config.RENAMING.rename_mode == 'origin' %}selected{% endif %}>{{ _("lang_origin") }}</option>
+                                <option value="no_change" {% if config.RENAMING.rename_mode == 'no_change' %}selected{% endif %}>{{ _("lang_no_change") }}</option>
                             </select>
                         </div>
                         <div class="flex items-center gap-2 pt-6">
                             <input type="checkbox" name="RENAMING.season_folders" value="True" {% if config.RENAMING.season_folders == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
-                            <label class="text-sm text-gray-700 font-semibold">Создавать папки сезонов для сериалов</label>
+                            <label class="text-sm text-gray-700 font-semibold">{{ _("create_season_folders") }}</label>
                         </div>
                     </div>
 
                     <!-- CONSTRUCTOR -->
                     <div class="space-y-4">
-                        <label class="block text-sm font-bold text-gray-800">Конструктор имени файла</label>
+                        <label class="block text-sm font-bold text-gray-800">{{ _("filename_constructor") }}</label>
                         
                         <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-4">
                             <div>
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Доступные блоки (нажмите для добавления)</p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{{ _("available_blocks") }}</p>
                                 <div id="available-blocks" class="flex flex-wrap gap-2">
-                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[name_lang]">Имя (Язык)</div>
-                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[name_orig]">Имя (Оригинал)</div>
-                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[year]">Год</div>
-                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[torrent]">Имя торрента</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[name_lang]">{{ _("block_name_lang") }}</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[name_orig]">{{ _("block_name_orig") }}</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[year]">{{ _("block_year") }}</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[torrent]">{{ _("block_torrent") }}</div>
                                     <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-semibold cursor-pointer hover:border-blue-500 transition" data-tag="[tag]">S01E01</div>
                                     <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag="(">(</div>
                                     <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag=")">)</div>
                                     <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag="-">-</div>
-                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag=" ">[Пробел]</div>
+                                    <div class="constructor-item px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold cursor-pointer hover:border-blue-500 transition" data-tag=" ">{{ _("block_space") }}</div>
                                 </div>
                             </div>
 
                             <div>
-                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ваш шаблон (перетаскивайте для сортировки)</p>
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{{ _("your_template") }}</p>
                                 <div id="template-constructor" class="flex flex-wrap gap-2 p-3 bg-white border-2 border-dashed border-slate-300 rounded-xl min-h-[50px] items-center">
                                     <!-- Blocks will be here -->
                                 </div>
                             </div>
                         </div>
                         <input type="hidden" name="RENAMING.filename_template" id="filename_template_input" value="{{ config.RENAMING.filename_template or '[name_lang] ([year]) ([torrent])' }}">
-                        <p class="text-[10px] text-gray-400">Пример результата: <span id="template-preview" class="font-mono text-blue-600">...</span></p>
+                        <p class="text-[10px] text-gray-400">{{ _("preview_result") }} <span id="template-preview" class="font-mono text-blue-600">...</span></p>
                     </div>
                 </div>
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Расширения</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("extensions") }}</div>
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Видео расширения</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("video_extensions") }}</label>
                         <input type="text" name="SYSTEM.video_extensions" value="{{ config.SYSTEM.video_extensions or '.mkv,.mp4,.avi' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Стоп-расширения</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("stop_extensions") }}</label>
                         <input type="text" name="SYSTEM.stop_extensions" value="{{ config.SYSTEM.stop_extensions or '.exe,.iso,.msi' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
                 </div>
@@ -132,7 +132,7 @@
         <!-- TAB: API & MASKS -->
         <div id="tab-api" class="tab-content hidden space-y-6">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">API Провайдеры</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("api_providers") }}</div>
                 <div class="p-6 space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {% for provider in [('kp', 'Kinopoisk'), ('tmdb', 'TMDB'), ('tvdb', 'TVDB')] %}
@@ -142,14 +142,14 @@
                                 <label class="font-bold text-gray-700">{{ provider[1] }}</label>
                             </div>
                             <input type="password" name="API.{{ provider[0] }}_api_key" value="{{ config.API[provider[0] ~ '_api_key'] }}" placeholder="API Key" class="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg">
-                            <button type="button" hx-post="/api/test/{{ 'kinopoisk' if provider[0] == 'kp' else provider[0] }}" hx-include="[name='API.{{ provider[0] }}_api_key']" hx-target="#test-result-{{ provider[0] }}" class="w-full py-1.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-200 transition">Тест</button>
+                            <button type="button" hx-post="/api/test/{{ 'kinopoisk' if provider[0] == 'kp' else provider[0] }}" hx-include="[name='API.{{ provider[0] }}_api_key']" hx-target="#test-result-{{ provider[0] }}" class="w-full py-1.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-200 transition">{{ _("test") }}</button>
                             <div id="test-result-{{ provider[0] }}"></div>
                         </div>
                         {% endfor %}
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Приоритет поиска</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("search_priority") }}</label>
                         <div id="priority-list" class="flex flex-wrap gap-2">
                             {% set priority_val = config.API.priority if config.API.priority else 'kp,tmdb,tvdb' %}
                             {% set priorities = priority_val.split(',') %}
@@ -166,14 +166,14 @@
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Пользовательские маски (Regex)</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("custom_masks") }}</div>
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Для сериалов</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("for_series") }}</label>
                         <textarea name="masks_series" rows="4" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ masks_series }}</textarea>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Для фильмов</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("for_movies") }}</label>
                         <textarea name="masks_movies" rows="4" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm">{{ masks_movies }}</textarea>
                     </div>
                 </div>
@@ -183,14 +183,14 @@
         <!-- TAB: TELEGRAM -->
         <div id="tab-telegram" class="tab-content hidden space-y-6">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Telegram Уведомления</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("telegram_notifications") }}</div>
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="flex items-center justify-between md:col-span-2">
                         <div class="flex items-center gap-2">
                             <input type="checkbox" name="TELEGRAM.use_telegram" value="True" {% if config.TELEGRAM.use_telegram == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
-                            <label class="font-bold text-gray-700">Включить уведомления</label>
+                            <label class="font-bold text-gray-700">{{ _("enable_notifications") }}</label>
                         </div>
-                        <button type="button" hx-post="/api/test/telegram" hx-include="[name='TELEGRAM.bot_token'], [name='TELEGRAM.chat_id']" hx-target="#test-result-tg" class="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition">Тестовое сообщение</button>
+                        <button type="button" hx-post="/api/test/telegram" hx-include="[name='TELEGRAM.bot_token'], [name='TELEGRAM.chat_id']" hx-target="#test-result-tg" class="px-4 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition">{{ _("test_message") }}</button>
                     </div>
                     <div id="test-result-tg" class="md:col-span-2"></div>
                     <div>
@@ -202,42 +202,42 @@
                         <input type="text" name="TELEGRAM.chat_id" value="{{ config.TELEGRAM.chat_id }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
                     <div class="md:col-span-2 space-y-4">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Шаблон сообщения (Jinja2)</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("message_template") }}</label>
                         <textarea name="TELEGRAM.template" rows="3" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-blue-500 transition">{{ config.TELEGRAM.template }}</textarea>
                         
                         <div class="p-4 bg-indigo-50 border border-indigo-100 rounded-xl space-y-3">
                             <div class="flex items-center gap-2 text-indigo-800 font-bold text-sm">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                Справка по переменным шаблона
+                                {{ _("template_vars_help") }}
                             </div>
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-[11px] text-indigo-700">
                                 <div class="flex justify-between border-b border-indigo-100 pb-1">
                                     <code class="bg-white px-1 font-bold">{% raw %}{{ type_name }}{% endraw %}</code>
-                                    <span>Тип контента (Фильм/Сериал)</span>
+                                    <span>{{ _("var_type_name") }}</span>
                                 </div>
                                 <div class="flex justify-between border-b border-indigo-100 pb-1">
                                     <code class="bg-white px-1 font-bold">{% raw %}{{ title }}{% endraw %}</code>
-                                    <span>Название медиа</span>
+                                    <span>{{ _("var_title") }}</span>
                                 </div>
                                 <div class="flex justify-between border-b border-indigo-100 pb-1">
                                     <code class="bg-white px-1 font-bold">{% raw %}{{ year }}{% endraw %}</code>
-                                    <span>Год выпуска</span>
+                                    <span>{{ _("var_year") }}</span>
                                 </div>
                                 <div class="flex justify-between border-b border-indigo-100 pb-1">
                                     <code class="bg-white px-1 font-bold">{% raw %}{{ status }}{% endraw %}</code>
-                                    <span>Статус (Готово/Ошибка)</span>
+                                    <span>{{ _("var_status") }}</span>
                                 </div>
                                 <div class="flex justify-between border-b border-indigo-100 pb-1">
                                     <code class="bg-white px-1 font-bold">{% raw %}{{ original_name }}{% endraw %}</code>
-                                    <span>Имя торрента</span>
+                                    <span>{{ _("var_original_name") }}</span>
                                 </div>
                                 <div class="flex justify-between border-b border-indigo-100 pb-1">
                                     <code class="bg-white px-1 font-bold">{% raw %}{{ type_name | lower }}{% endraw %}</code>
-                                    <span>Тип маленькими буквами</span>
+                                    <span>{{ _("var_type_lower") }}</span>
                                 </div>
                             </div>
                             <div class="pt-2">
-                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Пример шаблона:</p>
+                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">{{ _("template_example") }}</p>
                                 <code class="block p-2 bg-white/50 border border-indigo-100 rounded text-[11px] text-indigo-900 italic font-mono">
                                     🎬 <b>{% raw %}{{ type_name }}{% endraw %}</b> готов! 🍿 <b>{% raw %}{{ title }}{% endraw %}</b> ({% raw %}{{ year }}{% endraw %})
                                 </code>
@@ -251,11 +251,11 @@
         <!-- TAB: CLIENT -->
         <div id="tab-client" class="tab-content hidden space-y-6">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Торрент-клиент</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("torrent_client") }}</div>
                 <div class="p-6 space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-2">Тип клиента</label>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("client_type") }}</label>
                             <select id="client_type" name="CLIENT.type" onchange="onClientChange()" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                                 <option value="transmission" {% if config.CLIENT.type == 'transmission' %}selected{% endif %}>Transmission</option>
                                 <option value="qbittorrent" {% if config.CLIENT.type == 'qbittorrent' %}selected{% endif %}>qBittorrent</option>
@@ -263,18 +263,18 @@
                             </select>
                         </div>
                         <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-sm font-semibold text-gray-700 mb-2">Хост</label><input type="text" name="CLIENT.host" value="{{ config.CLIENT.host }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
-                            <div><label class="block text-sm font-semibold text-gray-700 mb-2">Порт</label><input type="text" id="client_port" name="CLIENT.port" value="{{ config.CLIENT.port }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("host") }}</label><input type="text" name="CLIENT.host" value="{{ config.CLIENT.host }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
+                            <div><label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("port") }}</label><input type="text" id="client_port" name="CLIENT.port" value="{{ config.CLIENT.port }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
                         </div>
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-2">Логин</label><input type="text" name="CLIENT.username" value="{{ config.CLIENT.username }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
-                        <div><label class="block text-sm font-semibold text-gray-700 mb-2">Пароль</label><input type="password" name="CLIENT.password" value="{{ config.CLIENT.password }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("username") }}</label><input type="text" name="CLIENT.username" value="{{ config.CLIENT.username }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
+                        <div><label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("password") }}</label><input type="password" name="CLIENT.password" value="{{ config.CLIENT.password }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg"></div>
                     </div>
                     <div class="flex items-center gap-4">
-                        <button type="button" hx-post="/api/test/client" hx-include="[name='CLIENT.type'], [name='CLIENT.host'], [name='CLIENT.port'], [name='CLIENT.username'], [name='CLIENT.password']" hx-target="#test-result-client" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">Тест соединения</button>
+                        <button type="button" hx-post="/api/test/client" hx-include="[name='CLIENT.type'], [name='CLIENT.host'], [name='CLIENT.port'], [name='CLIENT.username'], [name='CLIENT.password']" hx-target="#test-result-client" class="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">{{ _("test_connection") }}</button>
                         <div id="test-result-client"></div>
                     </div>
                     <div id="webhook-guide" class="p-4 bg-gray-800 text-gray-300 rounded-xl space-y-2">
-                        <h4 class="font-bold text-white text-sm">Команда для клиента:</h4>
+                        <h4 class="font-bold text-white text-sm">{{ _("client_command_hint") }}</h4>
                         <code id="guide-command" class="block text-xs text-green-400 break-all font-mono"></code>
                     </div>
                 </div>
@@ -284,43 +284,43 @@
         <!-- TAB: SYSTEM -->
         <div id="tab-system" class="tab-content hidden space-y-6">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Системное логирование</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("system_logging") }}</div>
                 <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Уровень детализации</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("detail_level") }}</label>
                         <select name="LOGGING.system_log_level" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
-                            <option value="0" {% if config.LOGGING.system_log_level == '0' %}selected{% endif %}>0 - Отключено</option>
-                            <option value="1" {% if config.LOGGING.system_log_level == '1' %}selected{% endif %}>1 - Операции</option>
-                            <option value="2" {% if config.LOGGING.system_log_level == '2' %}selected{% endif %}>2 - Ошибки</option>
-                            <option value="3" {% if config.LOGGING.system_log_level == '3' %}selected{% endif %}>3 - Полное</option>
+                            <option value="0" {% if config.LOGGING.system_log_level == '0' %}selected{% endif %}>{{ _("log_off") }}</option>
+                            <option value="1" {% if config.LOGGING.system_log_level == '1' %}selected{% endif %}>{{ _("log_ops") }}</option>
+                            <option value="2" {% if config.LOGGING.system_log_level == '2' %}selected{% endif %}>{{ _("log_errors") }}</option>
+                            <option value="3" {% if config.LOGGING.system_log_level == '3' %}selected{% endif %}>{{ _("log_full") }}</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Срок хранения (часов)</label>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("retention_hours") }}</label>
                         <input type="number" name="LOGGING.log_retention_hours" value="{{ config.LOGGING.log_retention_hours or '24' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
                     <div class="md:col-span-2 pt-2">
                         <a href="/logs" class="inline-flex items-center gap-2 px-6 py-3 bg-slate-800 hover:bg-black text-white text-xs font-bold rounded-xl transition shadow-lg shadow-slate-200">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
-                            Открыть системный журнал (Логи)
+                            {{ _("open_sys_log") }}
                         </a>
                     </div>
                 </div>
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">Безопасность Аккаунта</div>
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("account_security") }}</div>
                 <div class="p-6">
                     <div id="password-form-container" class="max-w-md space-y-4">
                         <div class="space-y-3">
-                            <input type="password" id="old_password" placeholder="Старый пароль" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
-                            <input type="password" id="new_password" placeholder="Новый пароль" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="password" id="old_password" placeholder="{{ _("old_password") }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                            <input type="password" id="new_password" placeholder="{{ _("new_password") }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
                             <button type="button" 
                                     hx-post="/settings/password" 
                                     hx-vals='js:{old_password: document.getElementById("old_password").value, new_password: document.getElementById("new_password").value}'
                                     hx-target="#password-result"
                                     class="w-full py-2 bg-gray-800 hover:bg-black text-white font-bold rounded-lg transition uppercase text-xs">
-                                Сменить пароль
+                                {{ _("change_password") }}
                             </button>
                         </div>
                         <div id="password-result"></div>
@@ -331,8 +331,8 @@
 
         <!-- SAVE BUTTON -->
         <div class="flex justify-end gap-4 pb-12">
-            <a href="/" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition">Отмена</a>
-            <button type="submit" class="px-12 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition">Сохранить всё</button>
+            <a href="/" class="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl transition">{{ _("cancel") }}</a>
+            <button type="submit" class="px-12 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition">{{ _("save_all") }}</button>
         </div>
     </form>
 </div>
@@ -378,7 +378,7 @@
         for (const [tag, val] of Object.entries(demoValues)) {
             preview = preview.replaceAll(tag, val);
         }
-        previewEl.innerText = preview || 'Пусто (будет оригинальное имя)';
+        previewEl.innerText = preview || '{{ _("empty_template_hint") }}';
     }
 
     function createBlock(tag, label) {

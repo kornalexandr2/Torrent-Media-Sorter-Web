@@ -39,15 +39,27 @@
                 <span>📦</span> Torrent Media Sorter
             </a>
             <div class="flex items-center gap-6">
-                <a href="/" class="hover:text-blue-400 text-sm font-semibold transition">Dashboard</a>
-                <a href="/settings" class="hover:text-blue-400 text-sm font-semibold transition">Settings</a>
-                <a href="/logs" class="hover:text-blue-400 text-sm font-semibold transition">Logs</a>
+                <a href="/" class="hover:text-blue-400 text-sm font-semibold transition">{{ _("dashboard") }}</a>
+                <a href="/settings" class="hover:text-blue-400 text-sm font-semibold transition">{{ _("settings") }}</a>
+                <a href="/logs" class="hover:text-blue-400 text-sm font-semibold transition">{{ _("logs") }}</a>
                 
+                <div class="h-6 w-px bg-slate-700"></div>
+                
+                <!-- Language Switcher -->
+                <div class="flex items-center gap-2">
+                    {% for lang in get_available_languages() %}
+                    <a href="/set-lang/{{ lang }}" 
+                       class="text-[10px] font-bold px-1.5 py-0.5 rounded uppercase transition {{ 'bg-blue-600 text-white' if request.cookies.get('lang', 'ru') == lang else 'text-slate-400 hover:bg-slate-700 hover:text-white' }}">
+                        {{ lang }}
+                    </a>
+                    {% endfor %}
+                </div>
+
                 {% if user %}
                 <div class="h-6 w-px bg-slate-700"></div>
                 <div class="flex items-center gap-3">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">{{ user.username }}</span>
-                    <a href="/logout" class="p-2 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition group" title="Выход">
+                    <a href="/logout" class="p-2 hover:bg-slate-700 rounded-lg text-slate-300 hover:text-white transition group" title="{{ _("logout") }}">
                         <svg class="w-5 h-5 group-hover:scale-110 transition duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                     </a>
                 </div>

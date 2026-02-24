@@ -2,6 +2,7 @@ import os
 import logging
 import shutil
 import uuid
+import json
 from pathlib import Path
 from fastapi import APIRouter, Request, Depends, Form, BackgroundTasks, HTTPException
 from fastapi.templating import Jinja2Templates
@@ -17,10 +18,53 @@ from ..models import Download, MediaStatus, MediaType, User
 from ..config import config_manager, BASE_DIR, SECRET_KEY
 from ..core.operations import file_ops
 from ..core.processor import processor
+from jinja2 import pass_context
 from ..core.logger import sys_logger
+from ..core.i18n import translator
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(BASE_DIR / "app/web/templates"))
+
+@pass_context
+def _translate(context, key, **kwargs):
+    request = context.get("request")
+    lang = "ru"
+    if request:
+        lang = request.cookies.get("lang", "ru")
+    return translator.translate(key, lang=lang, **kwargs)
+
+def render_log(line, lang="ru"):
+    if not line or not line.strip():
+        return ""
+    
+    parts = line.split('] ', 1)
+    if len(parts) != 2:
+        return translator.translate(line, lang=lang)
+    
+    timestamp, msg = parts[0] + "]", parts[1]
+    
+    if msg.startswith('{'):
+        try:
+            import json
+            log_data = json.loads(msg)
+            translated_msg = translator.translate(log_data.get("key"), lang=lang, **log_data.get("params", {}))
+            return f"{timestamp} {translated_msg}"
+        except:
+            pass
+            
+    return f"{timestamp} {translator.translate(msg, lang=lang)}"
+
+@pass_context
+def _render_log_wrapper(context, line):
+    request = context.get("request")
+    lang = request.cookies.get("lang", "ru") if request else "ru"
+    return render_log(line, lang=lang)
+
+templates.env.globals["_"] = _translate
+templates.env.globals["render_log"] = _render_log_wrapper
+templates.env.globals["get_available_languages"] = translator.get_available_languages
+templates.env.globals["json"] = json
+
 logger = logging.getLogger('TorrentMediaSorter')
 
 # Auth logic
@@ -60,25 +104,33 @@ async def login(request: Request, username: str = Form(...), password: str = For
     user = res.scalar_one_or_none()
     
     if user and pwd_context.verify(password, user.password_hash):
-        await sys_logger.log(3, "USER", f"Пользователь {username} вошел в систему")
+        await sys_logger.log(3, "USER", "log_logged_in", details=f"user: {username}")
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie(key="session", value=serializer.dumps(username), httponly=True)
         return response
     
-    await sys_logger.log(2, "USER", f"Неудачная попытка входа: {username}")
-    return templates.TemplateResponse("login.html", {"request": request, "error": "Неверный логин или пароль"})
+    await sys_logger.log(2, "USER", "log_login_failed", details=f"user: {username}")
+    return templates.TemplateResponse("login.html", {"request": request, "error": "invalid_credentials"})
 
 @router.get("/logout")
 async def logout(request: Request):
-    await sys_logger.log(3, "USER", "Пользователь вышел из системы")
+    await sys_logger.log(3, "USER", "log_logged_out")
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie("session")
+    return response
+
+@router.get("/set-lang/{lang}")
+async def set_lang(lang: str, request: Request):
+    referer = request.headers.get("referer", "/")
+    response = RedirectResponse(url=referer)
+    if lang in translator.get_available_languages():
+        response.set_cookie(key="lang", value=lang, max_age=30*24*60*60)
     return response
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
-    await sys_logger.log(3, "USER", "Переход на Дашборд")
+    await sys_logger.log(3, "USER", "log_nav_dashboard")
     stmt = select(Download).order_by(desc(Download.created_at)).limit(50)
     result = await db.execute(stmt)
     downloads = result.scalars().all()
@@ -95,7 +147,7 @@ async def dashboard(request: Request, db: AsyncSession = Depends(get_db), user: 
 @router.post("/refresh")
 async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
-    await sys_logger.log(1, "USER", "Запущена синхронизация дашборда")
+    await sys_logger.log(1, "USER", "log_refresh_started")
     from ..core.clients import get_client
     from ..models import FileMove
     from sqlalchemy import delete
@@ -165,7 +217,7 @@ async def refresh_dashboard(request: Request, db: AsyncSession = Depends(get_db)
 @router.post("/undo/{download_id}")
 async def undo_download(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
-    await sys_logger.log(1, "USER", f"Запрошен откат объекта {download_id}")
+    await sys_logger.log(1, "USER", "log_undo_requested", details=f"ID: {download_id}")
     success, msg = await file_ops.undo_download(download_id, db)
     
     if request.headers.get("HX-Request"):
@@ -175,7 +227,7 @@ async def undo_download(download_id: int, request: Request, db: AsyncSession = D
 @router.post("/retry/{download_id}")
 async def retry_download(download_id: int, request: Request, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
-    await sys_logger.log(1, "USER", f"Запрошен перезапуск объекта {download_id}")
+    await sys_logger.log(1, "USER", "log_retry_requested", details=f"ID: {download_id}")
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
     download = res.scalar_one_or_none()
@@ -217,7 +269,7 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
         _log.warning(f"--> [INFO] Unauthorized access attempt for ID {download_id}")
         return Response("Unauthorized", status_code=401)
     
-    await sys_logger.log(3, "USER", f"Просмотр информации об объекте {download_id}")
+    await sys_logger.log(3, "USER", "log_view_info", details=f"ID: {download_id}")
     _log.info(f"--> [INFO] Rendering info_modal for ID {download_id}")
     
     try:
@@ -247,7 +299,7 @@ async def download_info(download_id: int, request: Request, db: AsyncSession = D
 @router.get("/fix-match/{download_id}", response_class=HTMLResponse)
 async def fix_match_form(download_id: int, request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return Response("Unauthorized", status_code=401)
-    await sys_logger.log(3, "USER", f"Открытие формы исправления сопоставления {download_id}")
+    await sys_logger.log(3, "USER", "log_open_fix_match", details=f"ID: {download_id}")
     stmt = select(Download).where(Download.id == download_id)
     res = await db.execute(stmt)
     download = res.scalar_one_or_none()
@@ -382,7 +434,7 @@ async def api_status_updates(request: Request, db: AsyncSession = Depends(get_db
 @router.get("/settings", response_class=HTMLResponse)
 async def settings(request: Request, user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
-    await sys_logger.log(3, "USER", "Переход в настройки")
+    await sys_logger.log(3, "USER", "log_nav_settings")
     sections = config_manager.config.sections()
     config_data = {}
     for s in sections:
@@ -416,7 +468,7 @@ async def settings(request: Request, user: User = Depends(get_current_user)):
 @router.get("/logs", response_class=HTMLResponse)
 async def view_logs(request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
-    await sys_logger.log(3, "USER", "Просмотр системных логов")
+    await sys_logger.log(3, "USER", "log_view_logs")
     from ..models import SystemLog
     from sqlalchemy import select, desc
     stmt = select(SystemLog).order_by(desc(SystemLog.timestamp)).limit(200)
@@ -427,7 +479,7 @@ async def view_logs(request: Request, db: AsyncSession = Depends(get_db), user: 
 @router.post("/settings/save")
 async def save_settings(request: Request, user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)
-    await sys_logger.log(1, "USER", "Сохранение настроек")
+    await sys_logger.log(1, "USER", "log_settings_saved")
     form_data = await request.form()
     
     # List of expected checkboxes to handle "off" state
@@ -457,7 +509,7 @@ async def save_settings(request: Request, user: User = Depends(get_current_user)
             
             old_val = config_manager.get(section, k)
             if str(old_val) != str(value):
-                await sys_logger.log(3, "USER", f"Изменен параметр {section}.{k}: {old_val} -> {value}")
+                await sys_logger.log(3, "USER", "log_param_changed", details=f"{section}.{k}: {old_val} -> {value}")
             
             config_manager.set(section, k, value)
             
@@ -490,14 +542,14 @@ async def change_password(
     
     user.password_hash = pwd_context.hash(new_password)
     await db.commit()
-    await sys_logger.log(1, "USER", f"Пользователь {user.username} изменил пароль")
+    await sys_logger.log(1, "USER", "log_password_changed", details=f"user: {user.username}")
     
     return f'<div class="p-4 bg-green-50 border border-green-100 rounded-xl text-green-700 text-sm">✅ Пароль успешно изменен</div>'
 
 @router.get("/scan", response_class=HTMLResponse)
 async def scan_form(request: Request, user: User = Depends(get_current_user)):
     if not user: return Response("Unauthorized", status_code=401)
-    await sys_logger.log(3, "USER", "Открытие формы сканирования")
+    await sys_logger.log(3, "USER", "log_open_scan")
     download_dir = config_manager.get('PATHS', 'downloads_folder')
     return f"""
     <div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -543,7 +595,8 @@ async def scan_form(request: Request, user: User = Depends(get_current_user)):
 @router.post("/scan", response_class=HTMLResponse)
 async def run_manual_scan(request: Request, only_read: bool = Form(False), user: User = Depends(get_current_user)):
     if not user: return Response("Unauthorized", status_code=401)
-    await sys_logger.log(1, "USER", f"Запущено {'быстрое ' if only_read else 'полное '} сканирование папки")
+    scan_type = "fast" if only_read else "full"
+    await sys_logger.log(1, "USER", "log_scan_started", details=f"type: {scan_type}")
     path = config_manager.get('PATHS', 'downloads_folder')
     if not path or not os.path.exists(path):
         return f'<div class="text-red-500 font-bold p-4">Ошибка: Папка {path} не найдена</div>'
@@ -659,7 +712,7 @@ async def cleanup_folders(request: Request, user: User = Depends(get_current_use
     if not user: return Response("Unauthorized", status_code=401)
     form_data = await request.form()
     folders = form_data.getlist("folders")
-    await sys_logger.log(1, "USER", f"Удаление пустых папок ({len(folders)} шт)")
+    await sys_logger.log(1, "USER", "log_cleanup_started", details=f"count: {len(folders)}")
     
     deleted = 0
     errors = 0

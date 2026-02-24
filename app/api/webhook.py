@@ -1,19 +1,23 @@
 import logging
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, Form
+from fastapi import APIRouter, BackgroundTasks, Depends, Form, Request
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..schemas import WebhookPayload
 from ..database import get_db, AsyncSessionLocal
 from ..core.processor import processor
 from ..core.logger import sys_logger
+from ..core.i18n import translator
 
 router = APIRouter()
 logger = logging.getLogger('TorrentMediaSorter')
 
+def get_lang(request: Request):
+    return request.cookies.get("lang", "ru")
+
 @router.post("/webhook")
 async def webhook(payload: WebhookPayload, background_tasks: BackgroundTasks):
-    await sys_logger.log(1, "SCRIPT", f"Получен вебхук для торрента: {payload.torrent_name}")
+    await sys_logger.log(1, "SCRIPT", "log_proc_start", details=f"name: {payload.torrent_name}")
     logger.info(f"--> [WEBHOOK] Received: {payload.torrent_name}")
     
     # Запуск в фоне, чтобы не блокировать клиент
@@ -33,8 +37,9 @@ async def run_processing(payload: WebhookPayload):
 # --- API Test Endpoints ---
 
 @router.post("/test/kinopoisk", response_class=HTMLResponse)
-async def test_kp(api_key: str = Form(None, alias="API.kp_api_key")):
-    if not api_key: return '<p class="text-xs text-red-500">Ключ не введен</p>'
+async def test_kp(request: Request, api_key: str = Form(None, alias="API.kp_api_key")):
+    lang = get_lang(request)
+    if not api_key: return f'<p class="text-xs text-red-500">{translator.translate("key_not_entered", lang=lang)}</p>'
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
@@ -43,14 +48,15 @@ async def test_kp(api_key: str = Form(None, alias="API.kp_api_key")):
                 timeout=5.0
             )
             if resp.status_code == 200:
-                return '<p class="text-xs text-green-600">✅ Соединение успешно</p>'
-            return f'<p class="text-xs text-red-500">❌ Ошибка {resp.status_code}</p>'
+                return f'<p class="text-xs text-green-600">✅ {translator.translate("connection_success", lang=lang)}</p>'
+            return f'<p class="text-xs text-red-500">❌ {translator.translate("error_with_code", lang=lang, code=resp.status_code)}</p>'
     except Exception as e:
         return f'<p class="text-xs text-red-500">❌ {str(e)}</p>'
 
 @router.post("/test/tmdb", response_class=HTMLResponse)
-async def test_tmdb(api_key: str = Form(None, alias="API.tmdb_api_key")):
-    if not api_key: return '<p class="text-xs text-red-500">Ключ не введен</p>'
+async def test_tmdb(request: Request, api_key: str = Form(None, alias="API.tmdb_api_key")):
+    lang = get_lang(request)
+    if not api_key: return f'<p class="text-xs text-red-500">{translator.translate("key_not_entered", lang=lang)}</p>'
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
@@ -58,14 +64,15 @@ async def test_tmdb(api_key: str = Form(None, alias="API.tmdb_api_key")):
                 timeout=5.0
             )
             if resp.status_code == 200:
-                return '<p class="text-xs text-green-600">✅ Соединение успешно</p>'
-            return f'<p class="text-xs text-red-500">❌ Ошибка {resp.status_code}</p>'
+                return f'<p class="text-xs text-green-600">✅ {translator.translate("connection_success", lang=lang)}</p>'
+            return f'<p class="text-xs text-red-500">❌ {translator.translate("error_with_code", lang=lang, code=resp.status_code)}</p>'
     except Exception as e:
         return f'<p class="text-xs text-red-500">❌ {str(e)}</p>'
 
 @router.post("/test/tvdb", response_class=HTMLResponse)
-async def test_tvdb(api_key: str = Form(None, alias="API.tvdb_api_key")):
-    if not api_key: return '<p class="text-xs text-red-500">Ключ не введен</p>'
+async def test_tvdb(request: Request, api_key: str = Form(None, alias="API.tvdb_api_key")):
+    lang = get_lang(request)
+    if not api_key: return f'<p class="text-xs text-red-500">{translator.translate("key_not_entered", lang=lang)}</p>'
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -74,38 +81,42 @@ async def test_tvdb(api_key: str = Form(None, alias="API.tvdb_api_key")):
                 timeout=5.0
             )
             if resp.status_code == 200:
-                return '<p class="text-xs text-green-600">✅ Соединение успешно</p>'
-            return f'<p class="text-xs text-red-500">❌ Ошибка {resp.status_code}</p>'
+                return f'<p class="text-xs text-green-600">✅ {translator.translate("connection_success", lang=lang)}</p>'
+            return f'<p class="text-xs text-red-500">❌ {translator.translate("error_with_code", lang=lang, code=resp.status_code)}</p>'
     except Exception as e:
         return f'<p class="text-xs text-red-500">❌ {str(e)}</p>'
 
 @router.post("/test/telegram", response_class=HTMLResponse)
 async def test_telegram(
+    request: Request,
     token: str = Form(None, alias="TELEGRAM.bot_token"),
     chat_id: str = Form(None, alias="TELEGRAM.chat_id")
 ):
-    if not token or not chat_id: return '<p class="text-sm text-red-500">Введите Token и Chat ID</p>'
+    lang = get_lang(request)
+    if not token or not chat_id: return f'<p class="text-sm text-red-500">{translator.translate("enter_token_chatid", lang=lang)}</p>'
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 f"https://api.telegram.org/bot{token}/sendMessage",
-                json={"chat_id": chat_id, "text": "🔔 Тестовое сообщение от Torrent Media Sorter. Настройки верны!"},
+                json={"chat_id": chat_id, "text": translator.translate("test_msg_content", lang=lang)},
                 timeout=5.0
             )
             if resp.status_code == 200:
-                return '<div class="p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">✅ Тестовое сообщение отправлено!</div>'
-            return f'<div class="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">❌ Ошибка TG: {resp.text}</div>'
+                return f'<div class="p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">✅ {translator.translate("test_msg_sent", lang=lang)}</div>'
+            return f'<div class="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">❌ Error TG: {resp.text}</div>'
     except Exception as e:
-        return f'<div class="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">❌ Ошибка: {str(e)}</div>'
+        return f'<div class="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">❌ Error: {str(e)}</div>'
 
 @router.post("/test/client", response_class=HTMLResponse)
 async def test_client(
+    request: Request,
     client_type: str = Form(..., alias="CLIENT.type"),
     host: str = Form(..., alias="CLIENT.host"),
     port: str = Form(..., alias="CLIENT.port"),
     username: str = Form(None, alias="CLIENT.username"),
     password: str = Form(None, alias="CLIENT.password")
 ):
+    lang = get_lang(request)
     try:
         if client_type == "transmission":
             auth = None
@@ -129,8 +140,8 @@ async def test_client(
                     )
                 
                 if resp.status_code == 200:
-                    return '<p class="text-xs text-green-600">✅ Transmission: Соединение успешно</p>'
-                return f'<p class="text-xs text-red-500">❌ Ошибка {resp.status_code}</p>'
+                    return f'<p class="text-xs text-green-600">✅ Transmission: {translator.translate("connection_success", lang=lang)}</p>'
+                return f'<p class="text-xs text-red-500">❌ {translator.translate("error_with_code", lang=lang, code=resp.status_code)}</p>'
 
         elif client_type == "qbittorrent":
             async with httpx.AsyncClient() as client:
@@ -140,20 +151,21 @@ async def test_client(
                     timeout=5.0
                 )
                 if resp.status_code == 200 and "Ok" in resp.text:
-                    return '<p class="text-xs text-green-600">✅ qBittorrent: Авторизация успешна</p>'
-                return f'<p class="text-xs text-red-500">❌ Ошибка {resp.status_code}: {resp.text}</p>'
+                    return f'<p class="text-xs text-green-600">✅ qBittorrent: {translator.translate("auth_success", lang=lang)}</p>'
+                return f'<p class="text-xs text-red-500">❌ {translator.translate("error_with_code", lang=lang, code=resp.status_code)}: {resp.text}</p>'
         
-        return '<p class="text-xs text-gray-500">Тест не поддерживается для этого клиента</p>'
+        return f'<p class="text-xs text-gray-500">{translator.translate("test_not_supported", lang=lang)}</p>'
     except Exception as e:
-        return f'<p class="text-xs text-red-500">❌ Ошибка: {str(e)}</p>'
+        return f'<p class="text-xs text-red-500">❌ Error: {str(e)}</p>'
 
 @router.get("/client/path", response_class=HTMLResponse)
-async def get_client_path():
+async def get_client_path(request: Request):
     from ..core.clients import get_client
     from ..config import config_manager
+    lang = get_lang(request)
     client = get_client()
     if not client:
-        return '<button type="button" disabled class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed">Загрузки (нет клиента)</button>'
+        return f'<button type="button" disabled class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed">{translator.translate("no_client_error", lang=lang)}</button>'
     
     try:
         path = await client.get_default_download_dir()
@@ -163,9 +175,9 @@ async def get_client_path():
             <button type="button" 
                     onclick="document.getElementById('downloads_folder_input').value = '{path}'"
                     class="px-4 py-2 bg-indigo-100 text-indigo-700 hover:bg-indigo-200 text-xs font-bold rounded-lg transition">
-                Загрузки {config_manager.get('CLIENT', 'type', '').capitalize()}
+                {translator.translate("dashboard", lang=lang)} {config_manager.get('CLIENT', 'type', '').capitalize()}
             </button>
             """
     except: pass
     
-    return '<button type="button" disabled class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed">Загрузки (ошибка связи)</button>'
+    return f'<button type="button" disabled class="px-4 py-2 bg-gray-100 text-gray-400 text-xs font-bold rounded-lg cursor-not-allowed">{translator.translate("comm_error", lang=lang)}</button>'

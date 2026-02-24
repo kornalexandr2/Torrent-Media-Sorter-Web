@@ -5,7 +5,7 @@
             <div class="flex items-center gap-3">
                 <span class="text-2xl">ℹ️</span>
                 <div>
-                    <h3 class="font-bold text-gray-900 leading-tight">Информация об объекте</h3>
+                    <h3 class="font-bold text-gray-900 leading-tight">{{ _("info_title") }}</h3>
                     <p class="text-xs text-gray-500 font-mono truncate max-w-md">{{ download.torrent_name }}</p>
                 </div>
             </div>
@@ -17,35 +17,39 @@
             <!-- Main Info Grid -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Дата обнаружения</label>
+                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{{ _("created_at") }}</label>
                     <p class="text-sm text-gray-700">{% if download.created_at %}{{ download.created_at.strftime('%Y-%m-%d %H:%M:%S') }}{% else %}---{% endif %}</p>
                 </div>
                 <div class="space-y-1">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Текущий статус</label>
+                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{{ _("status") }}</label>
                     <div>
                         <span class="px-2 py-0.5 rounded-full text-xs font-bold border 
                             {% if download.status == 'SUCCESS' %}bg-green-50 text-green-700 border-green-200
                             {% elif download.status == 'PENDING' %}bg-blue-50 text-blue-700 border-blue-200
                             {% elif download.status == 'ERROR' %}bg-red-50 text-red-700 border-red-200
                             {% else %}bg-gray-50 text-gray-600 border-gray-200{% endif %}">
-                            {{ download.status }}
+                            {{ _(download.status.lower()) }}
                         </span>
                     </div>
                 </div>
                 <div class="md:col-span-2 space-y-1">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Оригинальный путь</label>
+                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{{ _("original_path") }}</label>
                     <p class="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded border border-gray-100 break-all">{{ download.original_path }}</p>
                 </div>
             </div>
 
             <!-- Detailed Logs -->
             <div class="space-y-2">
-                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">История обработки (Логи)</h4>
+                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">{{ _("processing_history") }}</h4>
                 <div class="bg-gray-900 text-green-400 p-4 rounded-xl font-mono text-[11px] leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-48">
                     {%- if download.logs -%}
-                        {{ download.logs }}
+                        {%- for line in download.logs.split('\n') -%}
+                            {%- if line.strip() -%}
+                                {{ render_log(line) }}
+                            {%- endif %}
+                        {%- endfor -%}
                     {%- else -%}
-                        История пуста
+                        {{ _("history_empty") }}
                     {%- endif -%}
                 </div>
             </div>
@@ -55,15 +59,15 @@
         <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-2 shrink-0">
             <form hx-post="/retry/{{ download.id }}" hx-target="body" class="inline">
                 <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition shadow-sm">
-                    🔄 Повторить
+                    🔄 {{ _("retry") }}
                 </button>
             </form>
             <button hx-get="/fix-match/{{ download.id }}" hx-target="#modal-placeholder" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition shadow-sm">
-                🛠 Исправить
+                🛠 {{ _("fix") }}
             </button>
             <div class="flex-1"></div>
             <button onclick="closeModal()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-lg transition">
-                Закрыть
+                {{ _("close") }}
             </button>
         </div>
     </div>
