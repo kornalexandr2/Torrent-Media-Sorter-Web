@@ -23,7 +23,7 @@ logger = logging.getLogger('TorrentMediaSorter')
 # Используем sha256_crypt как более универсальный и легкий метод для простых систем
 pwd_context = CryptContext(schemes=["sha256_crypt", "md5_crypt"], deprecated="auto")
 
-app = FastAPI(title="Torrent Media Sorter")
+app = FastAPI(title="Torrent Media Sorter", version="0.2")
 
 async def log_cleanup_task():
     while True:
