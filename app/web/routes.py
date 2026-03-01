@@ -48,7 +48,22 @@ def render_log(line, lang="ru"):
         try:
             import json
             log_data = json.loads(msg)
-            translated_msg = translator.translate(log_data.get("key"), lang=lang, **log_data.get("params", {}))
+            key = log_data.get("key")
+            params = log_data.get("params", {})
+            
+            if key == "log_api_data_received":
+                source = params.get('source', 'N/A')
+                titles = params.get('titles', {})
+                year = params.get('year', '')
+                sid = params.get('id', '')
+                
+                title_str = " | ".join([f"{k.upper()}: {v}" for k, v in titles.items() if v])
+                res = f"<b>[{source}]</b> Найдено: {title_str}"
+                if year: res += f" ({year})"
+                if sid: res += f" [ID: {sid}]"
+                return f"{timestamp} {res}"
+
+            translated_msg = translator.translate(key, lang=lang, **params)
         except:
             translated_msg = translator.translate(msg, lang=lang)
     else:

@@ -96,6 +96,11 @@ class Processor:
             
             if api_data and 'type' in api_data:
                 m_type = api_data['type']
+                self._add_log(download, "log_api_data_received", 
+                              source=api_data['source'], 
+                              titles=api_data['titles'], 
+                              year=api_data['year'], 
+                              id=api_data['source_id'])
                 await sys_logger.log(3, "SYSTEM", "log_api_meta_found", details=f"source: {api_data['source']}, query: {q_name}")
             else:
                 m_type = 'tv' if m_type_raw == 'tv' else 'movie'
