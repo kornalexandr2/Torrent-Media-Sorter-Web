@@ -3,6 +3,7 @@ import jinja2
 import logging
 from typing import Dict, Any
 from ..config import config_manager
+from .i18n import translator
 
 logger = logging.getLogger('TorrentMediaSorter')
 
@@ -20,6 +21,21 @@ class Notifier:
             return
 
         try:
+            # Get current lang from config or default to ru
+            lang = config_manager.get('RENAMING', 'rename_mode', 'ru')
+            if lang not in ['ru', 'en']: lang = 'ru'
+
+            # Translate type_name if it's a known key
+            if 'type_name' in data:
+                # Map technical 'tv' to 'series' for translation consistency if needed
+                t_key = data['type_name']
+                if t_key == 'tv': t_key = 'series'
+                data['type_name'] = translator.translate(t_key, lang=lang)
+
+            # Translate status if it's a known key
+            if 'status' in data:
+                data['status'] = translator.translate(data['status'], lang=lang)
+
             template = self.jinja_env.from_string(template_str)
             text = template.render(**data)
             
