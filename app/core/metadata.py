@@ -293,8 +293,9 @@ class IGDBProvider(MetadataProvider):
                 'Authorization': f'Bearer {token}',
                 'Content-Type': 'text/plain'
             }
-            # Search for the game
-            body = f'search "{query}"; fields name, first_release_date, summary; limit 1;'
+            # Escape quotes in query for IGDB search syntax
+            clean_query = query.replace('"', '\\"')
+            body = f'search "{clean_query}"; fields name, first_release_date, summary; limit 1;'
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, content=body, timeout=10.0)
                 
@@ -306,6 +307,7 @@ class IGDBProvider(MetadataProvider):
                         response = await client.post(url, headers=headers, content=body, timeout=10.0)
 
                 if response.status_code != 200:
+                    logger.error(f"--> [API:IGDB] Error {response.status_code}: {response.text}")
                     return None
                 
                 data = response.json()
@@ -333,6 +335,10 @@ class IGDBProvider(MetadataProvider):
         return None
 
     async def get_by_id(self, source_id: str, media_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        # If source_id is not a digit, it's probably a search query from manual fix form
+        if source_id and not source_id.isdigit():
+            return await self.get_metadata(source_id)
+
         client_id = config_manager.get('API', 'igdb_client_id')
         token = self._token or await self._get_token()
         if not client_id or not token:
@@ -349,6 +355,7 @@ class IGDBProvider(MetadataProvider):
             async with httpx.AsyncClient() as client:
                 response = await client.post(url, headers=headers, content=body, timeout=10.0)
                 if response.status_code != 200:
+                    logger.error(f"--> [API:IGDB] ID Error {response.status_code}: {response.text}")
                     return None
                 data = response.json()
                 if not data: return None
