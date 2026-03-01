@@ -77,7 +77,7 @@ class Scanner:
 
         # 1. ABSOLUTE PRIORITY: Check for software/game indicators (exe, dll, iso, etc.)
         # If these exist, it is DEFINITELY NOT a movie or series.
-        software_indicators = {'.exe', '.dll', '.iso', '.nsp', '.xci', '.nspro', '.msi', '.apk'}
+        software_indicators = {'.exe', '.dll', '.iso', '.nsp', '.xci', '.nspro', '.msi', '.apk', '.bin'}
         found_indicators = [f for f in all_files if f.suffix.lower() in software_indicators]
         
         if found_indicators:

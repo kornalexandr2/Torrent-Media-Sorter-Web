@@ -93,9 +93,9 @@ class Processor:
                 self._add_log(download, "log_api_search")
                 await sys_logger.log(3, "SYSTEM", "log_api_search", details=f"query: {q_name}")
                 
-                if m_type_raw == 'software':
-                    # STRICT MODE: If scanner found software indicators (exe, dll),
-                    # we ONLY use IGDB. No Kinopoisk/TMDB/TVDB to avoid false positives.
+                if m_type_raw in ['software', 'unknown']:
+                    # STRICT MODE: If scanner found software indicators or is unsure,
+                    # we ONLY use IGDB. No Kinopoisk/TMDB/TVDB to avoid false positives with media databases.
                     api_data = await metadata_manager.resolve(q_name, priority_list=['igdb'])
                 else:
                     # Normal mode for movies/series
