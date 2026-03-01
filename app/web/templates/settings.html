@@ -46,6 +46,14 @@
                             <input type="text" name="PATHS.series_folder" value="{{ config.PATHS.series_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                         </div>
                         <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("games_folder") }}</label>
+                            <input type="text" name="PATHS.games_folder" value="{{ config.PATHS.games_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("software_folder") }}</label>
+                            <input type="text" name="PATHS.software_folder" value="{{ config.PATHS.software_folder }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
+                        </div>
+                        <div>
                             <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("transfer_mode") }}</label>
                             <select name="RENAMING.mode" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition">
                                 <option value="move" {% if config.RENAMING.mode == 'move' %}selected{% endif %}>{{ _("move_mode") }}</option>
@@ -122,6 +130,10 @@
                         <input type="text" name="SYSTEM.video_extensions" value="{{ config.SYSTEM.video_extensions or '.mkv,.mp4,.avi' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
                     <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("game_extensions") }}</label>
+                        <input type="text" name="SYSTEM.game_extensions" value="{{ config.SYSTEM.game_extensions or '.exe,.iso,.nspro,.xci,.nsp' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-2">{{ _("stop_extensions") }}</label>
                         <input type="text" name="SYSTEM.stop_extensions" value="{{ config.SYSTEM.stop_extensions or '.exe,.iso,.msi' }}" class="w-full px-4 py-2 bg-gray-50 border border-gray-300 rounded-lg">
                     </div>
@@ -134,7 +146,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-700">{{ _("api_providers") }}</div>
                 <div class="p-6 space-y-6">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {% for provider in [('kp', 'Kinopoisk'), ('tmdb', 'TMDB'), ('tvdb', 'TVDB')] %}
                         <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
                             <div class="flex items-center gap-2">
@@ -146,6 +158,18 @@
                             <div id="test-result-{{ provider[0] }}"></div>
                         </div>
                         {% endfor %}
+
+                        <!-- IGDB BLOCK -->
+                        <div class="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-4">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" name="API.use_igdb" value="True" {% if config.API.use_igdb == 'True' %}checked{% endif %} class="w-4 h-4 text-blue-600 rounded">
+                                <label class="font-bold text-gray-700">IGDB (Games)</label>
+                            </div>
+                            <input type="text" name="API.igdb_client_id" value="{{ config.API.igdb_client_id }}" placeholder="Client ID" class="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg">
+                            <input type="password" name="API.igdb_client_secret" value="{{ config.API.igdb_client_secret }}" placeholder="Client Secret" class="w-full px-3 py-1.5 text-sm bg-white border border-gray-300 rounded-lg">
+                            <button type="button" hx-post="/api/test/igdb" hx-include="[name='API.igdb_client_id'], [name='API.igdb_client_secret']" hx-target="#test-result-igdb" class="w-full py-1.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-lg hover:bg-blue-200 transition">{{ _("test") }}</button>
+                            <div id="test-result-igdb"></div>
+                        </div>
                     </div>
 
                     <div>

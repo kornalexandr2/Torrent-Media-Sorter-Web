@@ -1,7 +1,10 @@
 import re
 import os
+import logging
 from pathlib import Path
 from ..config import config_manager, BASE_DIR
+
+logger = logging.getLogger('TorrentMediaSorter')
 
 class Scanner:
     def __init__(self):
@@ -10,6 +13,7 @@ class Scanner:
         self.movies_masks = self._load_masks(BASE_DIR / 'data' / 'masks_movies.txt')
         self.video_exts = tuple(x.strip().lower() for x in config_manager.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
         self.stop_exts = tuple(x.strip().lower() for x in config_manager.get('SYSTEM', 'stop_extensions', fallback='.exe,.iso,.msi,.apk,.dmg').split(','))
+        self.game_exts = tuple(x.strip().lower() for x in config_manager.get('SYSTEM', 'game_extensions', fallback='.exe,.iso,.nspro,.xci,.nsp').split(','))
 
     def _load_simple_list(self, filepath):
         items = []
@@ -48,26 +52,38 @@ class Scanner:
     def detect_type(self, path):
         p = Path(path)
         is_series = False
+        is_game = False
         target_name = p.name
         
-        # Check for stop extensions first
         all_files = list(p.rglob('*')) if p.is_dir() else [p]
+        
+        # 1. Check for video files (Media)
+        media_files = [f for f in all_files if f.is_file() and f.suffix.lower() in self.video_exts]
+        if media_files:
+            for f in media_files:
+                if self.get_season_episode(f.name) or any(m.search(f.name) for m in self.series_masks):
+                    is_series = True
+                    target_name = f.name
+                    break
+            return 'tv' if is_series else 'movie', target_name
+
+        # 2. Check for potentially executable files (Games or Software)
+        game_files = [f for f in all_files if f.is_file() and f.suffix.lower() in self.game_exts]
+        if game_files:
+            # We mark it as 'software' initially. 
+            # The MetadataManager will 'promote' it to 'game' if found in IGDB.
+            exe_files = [f for f in game_files if f.suffix.lower() == '.exe']
+            if exe_files:
+                target_name = exe_files[0].name
+            return 'software', target_name
+
+        # 3. Check for stop extensions (Unknown/Software?)
         for f in all_files:
             if f.is_file() and f.suffix.lower() in self.stop_exts:
-                logger.info(f"--> [SCANNER] Stop-extension found: {f.suffix}, skipping auto-detection for media.")
+                logger.info(f"--> [SCANNER] Stop-extension found: {f.suffix}, skipping auto-detection.")
                 return 'unknown', target_name
 
-        if p.is_dir():
-            for f in all_files:
-                if f.is_file() and f.suffix.lower() in self.video_exts:
-                    if self.get_season_episode(f.name) or any(m.search(f.name) for m in self.series_masks):
-                        is_series = True
-                        target_name = f.name
-                        break
-        else:
-            if self.get_season_episode(p.name) or any(m.search(p.name) for m in self.series_masks):
-                is_series = True
+        return 'movie', target_name # Default to movie if nothing found? or unknown?
 
-        return 'tv' if is_series else 'movie', target_name
 
 scanner = Scanner()

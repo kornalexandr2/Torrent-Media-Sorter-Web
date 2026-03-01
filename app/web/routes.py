@@ -490,6 +490,7 @@ async def save_settings(request: Request, user: User = Depends(get_current_user)
         ('API', 'use_kp'),
         ('API', 'use_tmdb'),
         ('API', 'use_tvdb'),
+        ('API', 'use_igdb'),
         ('TELEGRAM', 'use_telegram'),
     ]
     

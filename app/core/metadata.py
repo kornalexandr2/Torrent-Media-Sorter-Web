@@ -257,18 +257,134 @@ class TVDBProvider(MetadataProvider):
             logger.error(f"--> [API:TVDB] ID Error: {e}")
         return None
 
+class IGDBProvider(MetadataProvider):
+    def __init__(self):
+        self._token = None
+
+    async def _get_token(self):
+        client_id = config_manager.get('API', 'igdb_client_id')
+        client_secret = config_manager.get('API', 'igdb_client_secret')
+        if not client_id or not client_secret:
+            return None
+        
+        try:
+            url = f"https://id.twitch.tv/oauth2/token?client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials"
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, timeout=10.0)
+                if response.status_code == 200:
+                    data = response.json()
+                    self._token = data.get('access_token')
+                    return self._token
+        except Exception as e:
+            logger.error(f"--> [API:IGDB] Token error: {e}")
+        return None
+
+    async def get_metadata(self, query: str) -> Optional[Dict[str, Any]]:
+        await sys_logger.log(3, "API:IGDB", f"Запрос: {query}")
+        client_id = config_manager.get('API', 'igdb_client_id')
+        token = self._token or await self._get_token()
+        if not client_id or not token:
+            return None
+        
+        try:
+            url = "https://api.igdb.com/v4/games"
+            headers = {
+                'Client-ID': client_id,
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'text/plain'
+            }
+            # Search for the game
+            body = f'search "{query}"; fields name, first_release_date, summary; limit 1;'
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, content=body, timeout=10.0)
+                
+                # If token expired, retry once
+                if response.status_code == 401:
+                    token = await self._get_token()
+                    if token:
+                        headers['Authorization'] = f'Bearer {token}'
+                        response = await client.post(url, headers=headers, content=body, timeout=10.0)
+
+                if response.status_code != 200:
+                    return None
+                
+                data = response.json()
+                if not data:
+                    return None
+                
+                item = data[0]
+                t_orig = item.get('name')
+                titles = {'ru': t_orig, 'en': t_orig, 'origin': t_orig}
+                
+                year = ""
+                if item.get('first_release_date'):
+                    from datetime import datetime
+                    year = str(datetime.fromtimestamp(item['first_release_date']).year)
+                
+                return {
+                    'type': 'game',
+                    'titles': titles,
+                    'year': year,
+                    'source': 'IGDB',
+                    'source_id': str(item.get('id'))
+                }
+        except Exception as e:
+            logger.error(f"--> [API:IGDB] Error: {e}")
+        return None
+
+    async def get_by_id(self, source_id: str, media_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        client_id = config_manager.get('API', 'igdb_client_id')
+        token = self._token or await self._get_token()
+        if not client_id or not token:
+            return None
+        
+        try:
+            url = "https://api.igdb.com/v4/games"
+            headers = {
+                'Client-ID': client_id,
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'text/plain'
+            }
+            body = f'fields name, first_release_date, summary; where id = {source_id};'
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, headers=headers, content=body, timeout=10.0)
+                if response.status_code != 200:
+                    return None
+                data = response.json()
+                if not data: return None
+                
+                item = data[0]
+                t_orig = item.get('name')
+                titles = {'ru': t_orig, 'en': t_orig, 'origin': t_orig}
+                year = ""
+                if item.get('first_release_date'):
+                    from datetime import datetime
+                    year = str(datetime.fromtimestamp(item['first_release_date']).year)
+                
+                return {
+                    'type': 'game',
+                    'titles': titles,
+                    'year': year,
+                    'source': 'IGDB',
+                    'source_id': str(item.get('id'))
+                }
+        except Exception as e:
+            logger.error(f"--> [API:IGDB] ID Error: {e}")
+        return None
+
 class MetadataManager:
     def __init__(self):
         self.providers = {
             'kp': KinopoiskProvider(),
             'tmdb': TMDBProvider(),
-            'tvdb': TVDBProvider()
+            'tvdb': TVDBProvider(),
+            'igdb': IGDBProvider()
         }
 
     async def resolve(self, query: str, priority_list: List[str] = None) -> Optional[Dict[str, Any]]:
         manual_override = priority_list is not None
         if not manual_override:
-            priority_str = config_manager.get('API', 'priority', 'kp,tmdb,tvdb')
+            priority_str = config_manager.get('API', 'priority', 'kp,tmdb,tvdb,igdb')
             priority_list = [p.strip() for p in priority_str.split(',')]
             
         for p_name in priority_list:
@@ -277,6 +393,9 @@ class MetadataManager:
                 if manual_override or use_flag:
                     meta = await self.providers[p_name].get_metadata(query)
                     if meta:
+                        # If found in IGDB, it's definitely a game
+                        if p_name == 'igdb':
+                            meta['type'] = 'game'
                         return meta
         return None
 

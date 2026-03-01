@@ -86,6 +86,25 @@ async def test_tvdb(request: Request, api_key: str = Form(None, alias="API.tvdb_
     except Exception as e:
         return f'<p class="text-xs text-red-500">❌ {str(e)}</p>'
 
+@router.post("/test/igdb", response_class=HTMLResponse)
+async def test_igdb(
+    request: Request, 
+    client_id: str = Form(None, alias="API.igdb_client_id"),
+    client_secret: str = Form(None, alias="API.igdb_client_secret")
+):
+    lang = get_lang(request)
+    if not client_id or not client_secret: 
+        return f'<p class="text-xs text-red-500">{translator.translate("key_not_entered", lang=lang)}</p>'
+    try:
+        url = f"https://id.twitch.tv/oauth2/token?client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials"
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, timeout=5.0)
+            if resp.status_code == 200:
+                return f'<p class="text-xs text-green-600">✅ {translator.translate("connection_success", lang=lang)}</p>'
+            return f'<p class="text-xs text-red-500">❌ {translator.translate("error_with_code", lang=lang, code=resp.status_code)}</p>'
+    except Exception as e:
+        return f'<p class="text-xs text-red-500">❌ {str(e)}</p>'
+
 @router.post("/test/telegram", response_class=HTMLResponse)
 async def test_telegram(
     request: Request,

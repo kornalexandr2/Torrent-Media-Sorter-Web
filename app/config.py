@@ -39,6 +39,7 @@ class ConfigManager:
         self.config['SYSTEM'] = {
             'video_extensions': '.mkv,.avi,.mp4',
             'stop_extensions': '.exe,.iso,.msi,.apk,.dmg',
+            'game_extensions': '.exe,.iso,.nspro,.xci,.nsp',
             'web_password': ''
         }
         self.config['RENAMING'] = {
@@ -55,7 +56,10 @@ class ConfigManager:
             'tmdb_api_key': '',
             'use_tvdb': 'False',
             'tvdb_api_key': '',
-            'priority': 'kp,tmdb,tvdb'
+            'use_igdb': 'False',
+            'igdb_client_id': '',
+            'igdb_client_secret': '',
+            'priority': 'kp,tmdb,tvdb,igdb'
         }
         self.config['TELEGRAM'] = {
             'use_telegram': 'False',
