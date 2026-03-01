@@ -64,48 +64,68 @@ class Scanner:
         is_series = False
         target_name = p.name
         
-        all_files = [f for f in p.rglob('*') if f.is_file()] if p.is_dir() else [p]
-        
-        # 1. First, check if it's potentially a GAME or SOFTWARE (High priority if .exe exists)
-        game_files = [f for f in all_files if f.suffix.lower() in self.game_exts]
-        # If there's an .exe in the root or close to it, it's highly likely a game/soft
-        if game_files:
-            exe_files = [f for f in game_files if f.suffix.lower() == '.exe']
-            if exe_files:
-                # Prioritize shorter paths for target name (usually main launcher)
-                exe_files.sort(key=lambda x: len(x.parts))
-                target_name = exe_files[0].name
-                return 'software', target_name
+        # Get all files and handle potential access errors
+        try:
+            all_files = [f for f in p.rglob('*') if f.is_file()] if p.is_dir() else [p]
+        except Exception as e:
+            logger.error(f"--> [SCANNER] Access error for {path}: {e}")
+            return 'unknown', target_name
 
-        # 2. Check for video files (Media)
-        # We ignore small video files (< 50MB) which are usually trailers or game intros
+        if not all_files:
+            logger.warning(f"--> [SCANNER] No files found in {path}")
+            return 'unknown', target_name
+
+        # 1. Exe files = VERY high priority Software/Game
+        exe_files = [f for f in all_files if f.suffix.lower() == '.exe']
+        if exe_files:
+            exe_files.sort(key=lambda x: len(x.parts))
+            target_name = exe_files[0].name
+            return 'software', target_name
+
+        # 2. Check for game-specific extensions (.iso, .nsp, etc)
+        game_files = [f for f in all_files if f.suffix.lower() in self.game_exts]
+
+        # 3. Check for video files (Media)
+        # We increase threshold to 500MB to ignore trailers/intros in games
         media_files = [f for f in all_files if f.suffix.lower() in self.video_exts]
-        significant_media = [f for f in media_files if f.stat().st_size > 50 * 1024 * 1024]
+        huge_media = [f for f in media_files if f.stat().st_size > 500 * 1024 * 1024]
         
+        # If we have huge video files, it's likely a movie or series
+        if huge_media:
+            for f in huge_media:
+                if self.get_season_episode(f.name) or any(m.search(f.name) for m in self.series_masks):
+                    is_series = True
+                    target_name = f.name
+                    break
+            if not is_series:
+                huge_media.sort(key=lambda x: x.stat().st_size, reverse=True)
+                target_name = huge_media[0].name
+            return 'tv' if is_series else 'movie', target_name
+
+        # 4. If no huge media, but we have game files -> it's software/game
+        if game_files:
+            return 'software', target_name
+
+        # 5. Check if it's a directory with MANY files (likely a game or software)
+        if p.is_dir() and len(all_files) > 50:
+            return 'software', target_name
+
+        # 6. Fallback for smaller media files (e.g. 100MB episodes)
+        significant_media = [f for f in media_files if f.stat().st_size > 50 * 1024 * 1024]
         if significant_media:
             for f in significant_media:
                 if self.get_season_episode(f.name) or any(m.search(f.name) for m in self.series_masks):
                     is_series = True
                     target_name = f.name
                     break
-            if not is_series:
-                # If no series patterns found, use the largest file as target name for movie
-                significant_media.sort(key=lambda x: x.stat().st_size, reverse=True)
-                target_name = significant_media[0].name
-                
             return 'tv' if is_series else 'movie', target_name
 
-        # 3. Fallback for Game/Software if no .exe but other game exts found
-        if game_files:
-            return 'software', target_name
-
-        # 4. Check for stop extensions (Unknown/Software?)
+        # 7. Check for stop extensions
         for f in all_files:
             if f.suffix.lower() in self.stop_exts:
-                logger.info(f"--> [SCANNER] Stop-extension found: {f.suffix}, skipping auto-detection.")
                 return 'unknown', target_name
 
-        return 'movie', target_name # Default
+        return 'movie', target_name # Final default
 
 
 scanner = Scanner()
