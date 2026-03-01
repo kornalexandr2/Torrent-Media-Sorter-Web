@@ -335,8 +335,12 @@ class IGDBProvider(MetadataProvider):
         return None
 
     async def get_by_id(self, source_id: str, media_type: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        # Handle None or empty ID
+        if not source_id:
+            return None
+
         # If source_id is not a digit, it's probably a search query from manual fix form
-        if source_id and not source_id.isdigit():
+        if not source_id.isdigit():
             return await self.get_metadata(source_id)
 
         client_id = config_manager.get('API', 'igdb_client_id')
