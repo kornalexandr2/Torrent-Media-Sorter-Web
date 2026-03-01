@@ -530,6 +530,10 @@ async def save_settings(request: Request, user: User = Depends(get_current_user)
         return Response(headers={"HX-Redirect": "/settings"})
     return RedirectResponse(url="/settings", status_code=303)
 
+@router.get("/settings/api-help", response_class=HTMLResponse)
+async def api_help(request: Request, section: Optional[str] = None, user: User = Depends(get_current_user)):
+    return templates.TemplateResponse("api_help_modal.html", {"request": request, "section": section})
+
 @router.post("/settings/password")
 async def change_password(
     request: Request, 
