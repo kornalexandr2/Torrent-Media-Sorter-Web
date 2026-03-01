@@ -151,10 +151,15 @@ class Processor:
 
             logger.info(f"--> [PROCESSOR] Found {len(items_to_process)} files to process")
             is_media = m_type in ['movie', 'tv']
+            is_game_or_soft = m_type in ['game', 'software']
 
             for f in items_to_process:
+                # If it's media (movie/tv), only process video files
                 if is_media and f.suffix.lower() not in video_exts:
                     continue
+                
+                # If it's not media and not game/soft, we also skip it? 
+                # Let's say for games and software we take ALL files.
                 
                 rel_path = f.relative_to(p) if p.is_dir() else Path(f.name)
                 
