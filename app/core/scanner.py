@@ -47,7 +47,7 @@ class Scanner:
         # Expanded quality and scene tags
         quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub'
         # Game specific tags
-        game_tags = r'repack|build|version|v\d+(\.\d+)*|update|dlc|gold\s*edition|deluxe\s*edition|complete\s*edition|crack|steam|gog'
+        game_tags = r'setup|repack|build|version|v\d+(\.\d+)*|update|dlc|gold\s*edition|deluxe\s*edition|complete\s*edition|crack|steam|gog'
         
         all_tags = quality_tags + '|' + game_tags
         n = re.sub(r'(?i)\b(' + all_tags + r')\b.*', '', n)

@@ -92,7 +92,18 @@ class Processor:
             else:
                 self._add_log(download, "log_api_search")
                 await sys_logger.log(3, "SYSTEM", "log_api_search", details=f"query: {q_name}")
-                api_data = await metadata_manager.resolve(q_name)
+                
+                # Dynamic priority: if scanner thinks it's software, try IGDB first
+                priority_list = None
+                if m_type_raw == 'software':
+                    priority_str = config_manager.get('API', 'priority', 'kp,tmdb,tvdb,igdb')
+                    p_list = [p.strip() for p in priority_str.split(',')]
+                    if 'igdb' in p_list:
+                        p_list.remove('igdb')
+                        p_list.insert(0, 'igdb')
+                        priority_list = p_list
+
+                api_data = await metadata_manager.resolve(q_name, priority_list=priority_list)
             
             if api_data and 'type' in api_data:
                 m_type = api_data['type']
@@ -103,7 +114,7 @@ class Processor:
                               id=api_data['source_id'])
                 await sys_logger.log(3, "SYSTEM", "log_api_meta_found", details=f"source: {api_data['source']}, query: {q_name}")
             else:
-                m_type = 'tv' if m_type_raw == 'tv' else 'movie'
+                m_type = m_type_raw
                 await sys_logger.log(3, "SYSTEM", f"DEBUG: Meta not found, using scanner: {m_type}")
 
             type_map = {
