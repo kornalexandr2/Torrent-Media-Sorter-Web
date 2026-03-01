@@ -1,77 +1,145 @@
-<div id="modal-container" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+<div id="modal-container" class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col scale-in">
         <!-- Header -->
-        <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center shrink-0">
-            <div class="flex items-center gap-3">
-                <span class="text-2xl">ℹ️</span>
+        <div class="px-8 py-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-xl flex items-center justify-center font-black text-xl shadow-sm
+                    {% if download.status == 'SUCCESS' %}bg-green-100 text-green-600{% elif download.status == 'ERROR' %}bg-red-100 text-red-600{% else %}bg-blue-100 text-blue-600{% endif %}">
+                    {% if download.media_type == 'MOVIE' %}🎬{% elif download.media_type == 'SERIES' %}📺{% elif download.media_type == 'GAME' %}🎮{% elif download.media_type == 'SOFTWARE' %}💻{% else %}📦{% endif %}
+                </div>
                 <div>
-                    <h3 class="font-bold text-gray-900 leading-tight">{{ _("info_title") }}</h3>
-                    <p class="text-xs text-gray-500 font-mono truncate max-w-md">{{ download.torrent_name }}</p>
+                    <h2 class="text-xl font-black text-slate-800 tracking-tight leading-tight">
+                        {{ download.detected_title or download.torrent_name }}
+                        {% if download.detected_year %}<span class="text-slate-400 font-normal">({{ download.detected_year }})</span>{% endif %}
+                    </h2>
+                    <p class="text-xs font-bold uppercase tracking-wider 
+                        {% if download.status == 'SUCCESS' %}text-green-500{% elif download.status == 'ERROR' %}text-red-500{% else %}text-blue-500{% endif %}">
+                        {{ _(download.status.lower()) }} • {{ _(download.media_type.lower()) }}
+                    </p>
                 </div>
             </div>
-            <button onclick="closeModal()" class="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition">&times;</button>
+            <button onclick="closeModal()" class="p-2 hover:bg-gray-200 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
 
-        <!-- Body (Scrollable) -->
-        <div class="p-6 overflow-y-auto space-y-6">
-            <!-- Main Info Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="space-y-1">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{{ _("created_at") }}</label>
-                    <p class="text-sm text-gray-700">{% if download.created_at %}{{ download.created_at.strftime('%Y-%m-%d %H:%M:%S') }}{% else %}---{% endif %}</p>
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto bg-white">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-0 h-full">
+                
+                <!-- Main Info (Left/Center) -->
+                <div class="lg:col-span-2 p-8 space-y-8 border-r border-gray-50">
+                    
+                    <!-- Original Data Section -->
+                    <section class="space-y-3">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{{ _("original_info") }}</h3>
+                        <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Название торрента</label>
+                                <p class="text-sm font-bold text-slate-700 break-all leading-relaxed">{{ download.torrent_name }}</p>
+                            </div>
+                            <div>
+                                <label class="text-[10px] font-bold text-slate-400 uppercase block mb-1">Исходный путь</label>
+                                <p class="text-xs font-mono text-slate-600 break-all bg-white/50 p-2 rounded-lg border border-slate-100">{{ download.original_path }}</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Technical Meta Section -->
+                    <section class="space-y-3">
+                        <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{{ _("technical_details") }}</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
+                                <label class="text-[10px] font-bold text-indigo-400 uppercase block mb-1">Источник метаданных</label>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2 py-0.5 bg-indigo-600 text-white text-[10px] font-black rounded-md uppercase tracking-tighter">{{ download.metadata_source or 'SCANNER' }}</span>
+                                    <span class="text-sm font-bold text-indigo-900">ID: {{ download.source_id or 'N/A' }}</span>
+                                </div>
+                            </div>
+                            <div class="bg-sky-50/50 p-4 rounded-2xl border border-sky-100/50">
+                                <label class="text-[10px] font-bold text-sky-400 uppercase block mb-1">Дата обработки</label>
+                                <p class="text-sm font-bold text-sky-900">{{ download.created_at.strftime('%d.%m.%Y %H:%M') }}</p>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- File Moves Section -->
+                    <section class="space-y-3">
+                        <div class="flex justify-between items-end">
+                            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{{ _("transferred_files") }}</h3>
+                            <span class="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{{ moves|length }} файлов</span>
+                        </div>
+                        
+                        {% if moves %}
+                        <div class="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
+                            <table class="w-full text-left border-collapse">
+                                <thead class="bg-gray-50 text-[10px] font-black text-gray-400 uppercase">
+                                    <tr>
+                                        <th class="px-4 py-3 border-b border-gray-100">Файл (источник)</th>
+                                        <th class="px-4 py-3 border-b border-gray-100">Куда перемещен</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-50">
+                                    {% for move in moves %}
+                                    <tr class="hover:bg-slate-50/50 transition-colors">
+                                        <td class="px-4 py-3">
+                                            <p class="text-xs font-bold text-slate-700 truncate max-w-[200px]" title="{{ move.src_path }}">
+                                                {{ move.src_path.split('/')[-1].split('\\')[-1] }}
+                                            </p>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <p class="text-[10px] font-mono text-slate-500 break-all leading-relaxed">
+                                                {{ move.dst_path }}
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="bg-gray-50 rounded-2xl p-8 text-center border-2 border-dashed border-gray-200">
+                            <p class="text-sm text-gray-400 font-medium">Нет информации о перемещенных файлах</p>
+                        </div>
+                        {% endif %}
+                    </section>
                 </div>
-                <div class="space-y-1">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{{ _("status") }}</label>
-                    <div>
-                        <span class="px-2 py-0.5 rounded-full text-xs font-bold border 
-                            {% if download.status == 'SUCCESS' %}bg-green-50 text-green-700 border-green-200
-                            {% elif download.status == 'PENDING' %}bg-blue-50 text-blue-700 border-blue-200
-                            {% elif download.status == 'ERROR' %}bg-red-50 text-red-700 border-red-200
-                            {% else %}bg-gray-50 text-gray-600 border-gray-200{% endif %}">
-                            {{ _(download.status.lower()) }}
-                        </span>
+
+                <!-- Process Logs (Right Sidebar) -->
+                <div class="bg-slate-50 p-8 space-y-6">
+                    <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Лог процесса</h3>
+                    <div class="space-y-4 font-mono text-[11px] leading-relaxed overflow-y-auto max-h-[50vh] pr-2 custom-scrollbar">
+                        {% if download.logs %}
+                            {% for line in download.logs.split('\n') %}
+                            <div class="relative pl-4 border-l-2 border-slate-200 pb-2 last:pb-0">
+                                <div class="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-slate-300"></div>
+                                <span class="text-slate-600">{{ render_log(line) }}</span>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-slate-400 italic">Логи отсутствуют</p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="pt-8 space-y-3">
+                        <button onclick="closeModal()" class="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-black transition-all active:scale-95 shadow-lg shadow-slate-200 uppercase text-[10px] tracking-widest">Закрыть</button>
+                        {% if download.status == 'ERROR' or download.status == 'SUCCESS' %}
+                        <button hx-post="/retry/{{ download.id }}" hx-swap="none" class="w-full py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all active:scale-95 uppercase text-[10px] tracking-widest">
+                            {{ _("retry") }}
+                        </button>
+                        {% endif %}
                     </div>
                 </div>
-                <div class="md:col-span-2 space-y-1">
-                    <label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider">{{ _("original_path") }}</label>
-                    <p class="text-xs text-gray-600 font-mono bg-gray-50 p-2 rounded border border-gray-100 break-all">{{ download.original_path }}</p>
-                </div>
-            </div>
 
-            <!-- Detailed Logs -->
-            <div class="space-y-2">
-                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-widest">{{ _("processing_history") }}</h4>
-                <div class="bg-gray-900 text-green-400 p-4 rounded-xl font-mono text-[10px] leading-relaxed overflow-x-auto max-h-64 shadow-inner">
-                    {%- if download.logs -%}
-                        {%- for line in download.logs.split('\n') -%}
-                            {%- if line.strip() -%}
-                                <div class="py-1 border-b border-gray-800 last:border-0 flex gap-2">
-                                    <span class="text-gray-500 shrink-0">{{ line.split('] ')[0] + ']' if '] ' in line else '' }}</span>
-                                    <span class="text-green-300">{{ render_log(line).split('] ', 1)[1] if '] ' in render_log(line) else render_log(line) }}</span>
-                                </div>
-                            {%- endif %}
-                        {%- endfor -%}
-                    {%- else -%}
-                        <div class="text-gray-500 italic py-2">{{ _("history_empty") }}</div>
-                    {%- endif -%}
-                </div>
             </div>
-        </div>
-
-        <!-- Footer Actions -->
-        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-2 shrink-0">
-            <form hx-post="/retry/{{ download.id }}" hx-target="body" class="inline">
-                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition shadow-sm">
-                    🔄 {{ _("retry") }}
-                </button>
-            </form>
-            <button hx-get="/fix-match/{{ download.id }}" hx-target="#modal-placeholder" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg transition shadow-sm">
-                🛠 {{ _("fix") }}
-            </button>
-            <div class="flex-1"></div>
-            <button onclick="closeModal()" class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 text-sm font-bold rounded-lg transition">
-                {{ _("close") }}
-            </button>
         </div>
     </div>
 </div>
+
+<style>
+    .scale-in { animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes scaleIn { from { transform: scale(0.98) translateY(10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+</style>
