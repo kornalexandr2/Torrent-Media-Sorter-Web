@@ -27,6 +27,8 @@
     "torrent_name": "Torrent Name",
     "detected_as": "Detected As",
     "not_resolved": "Not resolved",
+    "scanner": "Scanner",
+    "meta_not_found_fallback": "Metadata not found",
     "confirm_undo": "Are you sure you want to undo all operations for this item?",
     "system_logs": "System Logs",
     "logs_subtitle": "History of system and user actions",

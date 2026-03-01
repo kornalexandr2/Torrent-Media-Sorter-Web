@@ -17,10 +17,20 @@
                     {{ d.metadata_source }}
                 </span>
                 <span class="font-semibold text-gray-800">{{ d.detected_title }}</span>
-                <span class="text-gray-400 text-sm">({{ d.detected_year }})</span>
+                {% if d.detected_year %}<span class="text-gray-400 text-sm">({{ d.detected_year }})</span>{% endif %}
             </div>
             <div class="text-xs text-blue-500 font-medium">
-                {{ _(d.media_type) if d.media_type else "" }}
+                {{ _(d.media_type.lower()) if d.media_type else "" }}
+            </div>
+        {% elif d.media_type and d.media_type != 'UNKNOWN' %}
+            <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 border border-amber-100 uppercase font-bold">
+                    {{ _("scanner") }}
+                </span>
+                <span class="text-xs text-slate-500 italic">{{ _("meta_not_found_fallback") }}</span>
+            </div>
+            <div class="text-xs text-blue-500 font-bold mt-1">
+                {{ _(d.media_type.lower()) }}
             </div>
         {% else %}
             <span class="text-gray-400 italic text-sm">{{ _("not_resolved") }}</span>
