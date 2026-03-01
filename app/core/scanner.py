@@ -41,24 +41,25 @@ class Scanner:
         n = Path(name).stem.replace('.', ' ').replace('_', ' ').strip()
         base_cleaned = n
         
-        # Remove year and everything after it ONLY if it's a 4-digit year starting with 19 or 20
+        # 1. Remove version numbers like 1.32, v1.32, 1.32.1
+        n = re.sub(r'(?i)\b(v?\d+(\.\d+)+)\b', '', n)
+        
+        # 2. Remove year and everything after it ONLY if it's a 4-digit year starting with 19 or 20
         n = re.sub(r'\s(19|20)\d{2}\b.*', '', n)
         
-        # Game specific tags - removed version tags from cutting logic to keep '3' in 'Witcher 3'
-        # but added specific version patterns to remove them cleanly
-        n = re.sub(r'(?i)\b(v?\d+(\.\d+)+)\b', '', n) # Remove v1.32, 1.32.1 etc
+        # 3. Specific cleaning for GOG/Steam suffixes often found in games
+        n = re.sub(r'(?i)\b(win|gog|steam|repack|setup|build|version|update|dlc|gold|deluxe|complete|crack)\b.*', '', n)
         
+        # 4. Standard quality tags
         quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub'
-        game_tags = r'setup|repack|build|version|update|dlc|gold\s*edition|deluxe\s*edition|complete\s*edition|crack|steam|gog|win'
-        
-        all_tags = quality_tags + '|' + game_tags
-        n = re.sub(r'(?i)\b(' + all_tags + r')\b.*', '', n)
+        n = re.sub(r'(?i)\b(' + quality_tags + r')\b.*', '', n)
         
         if self.stop_words:
             pattern_str = '|'.join(re.escape(w) for w in self.stop_words)
             n = re.sub(r'(?i)\b(' + pattern_str + r')\b.*', '', n)
             
         result = n.strip(' -()[]')
+        # If we cleaned too much, return base
         return result if len(result) >= 2 else base_cleaned.strip(' -()[]')
 
     def detect_type(self, path):
