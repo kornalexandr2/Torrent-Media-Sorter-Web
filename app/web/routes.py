@@ -366,6 +366,7 @@ async def run_fix_match_task(download_id: int, media_type: str, source: str, sou
             if download and os.path.exists(download.original_path):
                 # 3. Resolve new metadata
                 from ..core.metadata import metadata_manager
+                from ..core.scanner import scanner
                 
                 if source == "none":
                     # Manual mode
@@ -378,7 +379,12 @@ async def run_fix_match_task(download_id: int, media_type: str, source: str, sou
                         'source_id': ''
                     }
                 else:
-                    api_data = await metadata_manager.resolve_by_id(source, source_id, media_type)
+                    if not source_id or not source_id.strip():
+                        # If ID is empty, perform search by torrent name using ONLY the selected source
+                        q_name = scanner.clean_search(Path(download.original_path).name)
+                        api_data = await metadata_manager.resolve(q_name, priority_list=[source])
+                    else:
+                        api_data = await metadata_manager.resolve_by_id(source, source_id, media_type)
                 
                 if api_data:
                     p = Path(download.original_path)
