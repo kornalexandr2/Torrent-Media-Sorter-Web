@@ -93,17 +93,13 @@ class Processor:
                 self._add_log(download, "log_api_search")
                 await sys_logger.log(3, "SYSTEM", "log_api_search", details=f"query: {q_name}")
                 
-                # Dynamic priority: if scanner thinks it's software, try IGDB first
-                priority_list = None
                 if m_type_raw == 'software':
-                    priority_str = config_manager.get('API', 'priority', 'kp,tmdb,tvdb,igdb')
-                    p_list = [p.strip() for p in priority_str.split(',')]
-                    if 'igdb' in p_list:
-                        p_list.remove('igdb')
-                        p_list.insert(0, 'igdb')
-                        priority_list = p_list
-
-                api_data = await metadata_manager.resolve(q_name, priority_list=priority_list)
+                    # STRICT MODE: If scanner found software indicators (exe, dll),
+                    # we ONLY use IGDB. No Kinopoisk/TMDB/TVDB to avoid false positives.
+                    api_data = await metadata_manager.resolve(q_name, priority_list=['igdb'])
+                else:
+                    # Normal mode for movies/series
+                    api_data = await metadata_manager.resolve(q_name)
             
             if api_data and 'type' in api_data:
                 m_type = api_data['type']
@@ -114,6 +110,7 @@ class Processor:
                               id=api_data['source_id'])
                 await sys_logger.log(3, "SYSTEM", "log_api_meta_found", details=f"source: {api_data['source']}, query: {q_name}")
             else:
+                # No meta found - keep what scanner determined
                 m_type = m_type_raw
                 await sys_logger.log(3, "SYSTEM", f"DEBUG: Meta not found, using scanner: {m_type}")
 

@@ -41,13 +41,15 @@ class Scanner:
         n = Path(name).stem.replace('.', ' ').replace('_', ' ').strip()
         base_cleaned = n
         
-        # Remove year and everything after it
+        # Remove year and everything after it ONLY if it's a 4-digit year starting with 19 or 20
         n = re.sub(r'\s(19|20)\d{2}\b.*', '', n)
         
-        # Expanded quality and scene tags
+        # Game specific tags - removed version tags from cutting logic to keep '3' in 'Witcher 3'
+        # but added specific version patterns to remove them cleanly
+        n = re.sub(r'(?i)\b(v?\d+(\.\d+)+)\b', '', n) # Remove v1.32, 1.32.1 etc
+        
         quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub'
-        # Game specific tags
-        game_tags = r'setup|repack|build|version|v\d+(\.\d+)*|update|dlc|gold\s*edition|deluxe\s*edition|complete\s*edition|crack|steam|gog'
+        game_tags = r'setup|repack|build|version|update|dlc|gold\s*edition|deluxe\s*edition|complete\s*edition|crack|steam|gog|win'
         
         all_tags = quality_tags + '|' + game_tags
         n = re.sub(r'(?i)\b(' + all_tags + r')\b.*', '', n)
