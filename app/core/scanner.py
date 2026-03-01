@@ -62,38 +62,50 @@ class Scanner:
     def detect_type(self, path):
         p = Path(path)
         is_series = False
-        is_game = False
         target_name = p.name
         
-        all_files = list(p.rglob('*')) if p.is_dir() else [p]
+        all_files = [f for f in p.rglob('*') if f.is_file()] if p.is_dir() else [p]
         
-        # 1. Check for video files (Media)
-        media_files = [f for f in all_files if f.is_file() and f.suffix.lower() in self.video_exts]
-        if media_files:
-            for f in media_files:
+        # 1. First, check if it's potentially a GAME or SOFTWARE (High priority if .exe exists)
+        game_files = [f for f in all_files if f.suffix.lower() in self.game_exts]
+        # If there's an .exe in the root or close to it, it's highly likely a game/soft
+        if game_files:
+            exe_files = [f for f in game_files if f.suffix.lower() == '.exe']
+            if exe_files:
+                # Prioritize shorter paths for target name (usually main launcher)
+                exe_files.sort(key=lambda x: len(x.parts))
+                target_name = exe_files[0].name
+                return 'software', target_name
+
+        # 2. Check for video files (Media)
+        # We ignore small video files (< 50MB) which are usually trailers or game intros
+        media_files = [f for f in all_files if f.suffix.lower() in self.video_exts]
+        significant_media = [f for f in media_files if f.stat().st_size > 50 * 1024 * 1024]
+        
+        if significant_media:
+            for f in significant_media:
                 if self.get_season_episode(f.name) or any(m.search(f.name) for m in self.series_masks):
                     is_series = True
                     target_name = f.name
                     break
+            if not is_series:
+                # If no series patterns found, use the largest file as target name for movie
+                significant_media.sort(key=lambda x: x.stat().st_size, reverse=True)
+                target_name = significant_media[0].name
+                
             return 'tv' if is_series else 'movie', target_name
 
-        # 2. Check for potentially executable files (Games or Software)
-        game_files = [f for f in all_files if f.is_file() and f.suffix.lower() in self.game_exts]
+        # 3. Fallback for Game/Software if no .exe but other game exts found
         if game_files:
-            # We mark it as 'software' initially. 
-            # The MetadataManager will 'promote' it to 'game' if found in IGDB.
-            exe_files = [f for f in game_files if f.suffix.lower() == '.exe']
-            if exe_files:
-                target_name = exe_files[0].name
             return 'software', target_name
 
-        # 3. Check for stop extensions (Unknown/Software?)
+        # 4. Check for stop extensions (Unknown/Software?)
         for f in all_files:
-            if f.is_file() and f.suffix.lower() in self.stop_exts:
+            if f.suffix.lower() in self.stop_exts:
                 logger.info(f"--> [SCANNER] Stop-extension found: {f.suffix}, skipping auto-detection.")
                 return 'unknown', target_name
 
-        return 'movie', target_name # Default to movie if nothing found? or unknown?
+        return 'movie', target_name # Default
 
 
 scanner = Scanner()
