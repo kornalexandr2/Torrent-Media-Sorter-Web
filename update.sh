@@ -50,14 +50,17 @@ try:
     cursor.execute("PRAGMA table_info(downloads)")
     columns = [info[1] for info in cursor.fetchall()]
     
-    # Проверяем наличие новой колонки
+    # Проверяем наличие новых колонок
     if 'system_media_type' not in columns:
         print("Добавление колонки system_media_type в таблицу downloads...")
         cursor.execute("ALTER TABLE downloads ADD COLUMN system_media_type VARCHAR(50)")
-        conn.commit()
-        print("База данных успешно обновлена.")
-    else:
-        print("Структура базы данных актуальна.")
+        
+    if 'type_scores' not in columns:
+        print("Добавление колонки type_scores в таблицу downloads...")
+        cursor.execute("ALTER TABLE downloads ADD COLUMN type_scores TEXT")
+        
+    conn.commit()
+    print("Проверка структуры базы данных завершена.")
         
 except Exception as e:
     print(f"Ошибка при обновлении базы данных: {e}", file=sys.stderr)

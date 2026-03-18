@@ -82,7 +82,12 @@ class Processor:
 
         try:
             await sys_logger.log(3, "SYSTEM", "log_detect_type", details=f"name: {p.name}")
-            m_type_raw, target_name = scanner.detect_type(p)
+            
+            import json
+            scores, target_name = scanner.detect_type(p)
+            m_type_raw = max(scores, key=scores.get)
+            download.type_scores = json.dumps(scores)
+            
             q_name = scanner.clean_search(target_name)
             self._add_log(download, "log_type_detected", type=m_type_raw, query=q_name)
             

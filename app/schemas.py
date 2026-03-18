@@ -23,6 +23,8 @@ class DownloadSchema(BaseModel):
     original_path: str
     status: MediaStatus
     media_type: MediaType
+    system_media_type: Optional[str]
+    type_scores: Optional[str]
     detected_title: Optional[str]
     detected_year: Optional[str]
     metadata_source: Optional[str]

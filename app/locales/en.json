@@ -160,6 +160,8 @@
     "manual_no_meta": "Manual (No Metadata)",
     "source_id_name_hint": "Source ID or Name (Optional)",
     "apply_retry": "Apply & Retry",
+    "content_rating": "Content Rating",
+    "no_rating_data": "No rating data available",
     "info_title": "Item Information",
     "original_path": "Original Path",
     "file_moves": "Moved Files",

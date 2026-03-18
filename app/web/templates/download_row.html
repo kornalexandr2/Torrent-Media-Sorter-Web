@@ -24,6 +24,18 @@
                 <span class="text-gray-400 mx-1">|</span>
                 <span class="text-gray-500 mr-1">{{ _("USER") }}:</span><span class="{% if d.system_media_type != d.media_type %}text-amber-600{% else %}text-blue-500{% endif %} font-medium">{{ _(d.media_type.lower()) if d.media_type else _("unknown") }}</span>
             </div>
+            {% if d.type_scores %}
+            <div class="flex gap-1.5 text-[9px] mt-1.5 flex-wrap">
+                {% set scores = json.loads(d.type_scores) %}
+                {% for k, v in scores.items() %}
+                    {% if v > 0 %}
+                        <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-bold uppercase tracking-wider border border-slate-200">
+                            {{ _(k) }}: {{ v }}%
+                        </span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
         {% elif d.media_type and d.media_type != 'UNKNOWN' %}
             <div class="flex items-center gap-2">
                 <span class="px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-600 border border-amber-100 uppercase font-bold">
@@ -36,6 +48,18 @@
                 <span class="text-gray-400 mx-1">|</span>
                 <span class="text-gray-500 mr-1">{{ _("USER") }}:</span><span class="{% if d.system_media_type != d.media_type %}text-amber-600{% else %}text-blue-500{% endif %} font-bold">{{ _(d.media_type.lower()) if d.media_type else _("unknown") }}</span>
             </div>
+            {% if d.type_scores %}
+            <div class="flex gap-1.5 text-[9px] mt-1.5 flex-wrap">
+                {% set scores = json.loads(d.type_scores) %}
+                {% for k, v in scores.items() %}
+                    {% if v > 0 %}
+                        <span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-bold uppercase tracking-wider border border-slate-200">
+                            {{ _(k) }}: {{ v }}%
+                        </span>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endif %}
         {% else %}
             <span class="text-gray-400 italic text-sm">{{ _("not_resolved") }}</span>
         {% endif %}

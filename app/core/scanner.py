@@ -64,61 +64,107 @@ class Scanner:
 
     def detect_type(self, path):
         p = Path(path)
-        is_series = False
         target_name = p.name
         
         try:
             all_files = [f for f in p.rglob('*') if f.is_file()] if p.is_dir() else [p]
         except Exception as e:
             logger.error(f"--> [SCANNER] Access error for {path}: {e}")
-            return 'unknown', target_name
+            return {'movie': 0, 'tv': 0, 'game': 0, 'software': 0, 'other': 0}, target_name
 
         if not all_files:
-            return 'unknown', target_name
+            return {'movie': 0, 'tv': 0, 'game': 0, 'software': 0, 'other': 0}, target_name
 
-        # 1. ABSOLUTE PRIORITY: Check for software/game indicators (exe, dll, iso, etc.)
-        # If these exist, it is DEFINITELY NOT a movie or series.
-        software_indicators = {'.exe', '.dll', '.iso', '.nsp', '.xci', '.nspro', '.msi', '.apk', '.bin'}
-        found_indicators = [f for f in all_files if f.suffix.lower() in software_indicators]
+        scores = {'movie': 0, 'tv': 0, 'game': 0, 'software': 0, 'other': 0}
         
-        if found_indicators:
-            # Try to find the best name (launcher exe or iso name)
-            exe_files = [f for f in found_indicators if f.suffix.lower() == '.exe']
+        # Factor 1: Executables / Software indicators
+        software_indicators = {'.exe', '.dll', '.msi', '.apk', '.bin', '.bat', '.cmd'}
+        has_soft_ind = any(f.suffix.lower() in software_indicators for f in all_files)
+        if has_soft_ind:
+            scores['software'] += 80
+            scores['game'] += 80
+            scores['movie'] -= 90
+            scores['tv'] -= 90
+
+            exe_files = [f for f in all_files if f.suffix.lower() == '.exe']
             if exe_files:
-                exe_files.sort(key=lambda x: len(x.parts)) # Closest to root
+                exe_files.sort(key=lambda x: len(x.parts))
                 target_name = exe_files[0].name
+                scores['software'] += 10
             else:
-                # If no exe, but dll/iso found, use folder name
                 target_name = p.name
-            return 'software', target_name
 
-        # 2. Check for video files (Media)
-        media_files = [f for f in all_files if f.suffix.lower() in self.video_exts]
-        # Ignore very small files (trailers/intros)
-        significant_media = [f for f in media_files if f.stat().st_size > 100 * 1024 * 1024]
+        # Factor 2: ISO / Disk Images
+        iso_indicators = {'.iso', '.mds', '.mdf', '.nrg'}
+        has_iso = any(f.suffix.lower() in iso_indicators for f in all_files)
+        if has_iso:
+            scores['game'] += 60
+            scores['software'] += 50
+            scores['movie'] += 20 # Could be DVD/BD image
+            scores['tv'] += 10
+            
+        # Factor 3: Console game indicators
+        console_indicators = {'.nsp', '.xci', '.nspro', '.vpk'}
+        if any(f.suffix.lower() in console_indicators for f in all_files):
+            scores['game'] += 90
+            scores['movie'] -= 90
+            scores['tv'] -= 90
+
+        # Factor 4: Videos
+        video_files = [f for f in all_files if f.suffix.lower() in self.video_exts]
+        big_videos = [f for f in video_files if f.stat().st_size > 50 * 1024 * 1024]
         
-        if significant_media:
-            for f in significant_media:
+        if big_videos:
+            scores['movie'] += 40
+            scores['tv'] += 40
+            
+            has_series_pattern = False
+            for f in big_videos:
                 if self.get_season_episode(f.name) or any(m.search(f.name) for m in self.series_masks):
-                    is_series = True
+                    has_series_pattern = True
                     target_name = f.name
                     break
-            if not is_series:
-                significant_media.sort(key=lambda x: x.stat().st_size, reverse=True)
-                target_name = significant_media[0].name
-            return 'tv' if is_series else 'movie', target_name
+                    
+            if has_series_pattern:
+                scores['tv'] += 50
+                scores['movie'] -= 30
+            else:
+                if len(big_videos) == 1:
+                    scores['movie'] += 40
+                    scores['tv'] -= 10
+                elif len(big_videos) > 1:
+                    scores['tv'] += 30
+                    scores['movie'] += 10
+                
+                big_videos.sort(key=lambda x: x.stat().st_size, reverse=True)
+                if not has_series_pattern:
+                    target_name = big_videos[0].name
+        elif video_files:
+            # Small video files
+            scores['movie'] += 10
+            scores['tv'] += 10
 
-        # 3. Check for general game/soft extensions from config
-        game_files = [f for f in all_files if f.suffix.lower() in self.game_exts]
-        if game_files or (p.is_dir() and len(all_files) > 50):
-            return 'software', target_name
-
-        # 4. Check for stop extensions
+        # Factor 5: Stop extensions
         for f in all_files:
             if f.suffix.lower() in self.stop_exts:
-                return 'unknown', target_name
+                scores['other'] += 50
+                scores['movie'] -= 50
+                scores['tv'] -= 50
 
-        return 'movie', target_name # Default fallback
+        # Factor 6: File counts
+        if len(all_files) > 100 and not big_videos:
+            scores['software'] += 30
+            scores['game'] += 30
+            
+        # Clamp scores between 0 and 100
+        for k in scores:
+            scores[k] = max(0, min(100, scores[k]))
+            
+        # If everything is 0, give 'other' some score
+        if max(scores.values()) == 0:
+            scores['other'] = 50
+            
+        return scores, target_name
 
 
 scanner = Scanner()

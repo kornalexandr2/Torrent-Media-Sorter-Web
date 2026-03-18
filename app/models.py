@@ -31,6 +31,7 @@ class Download(Base):
     status: Mapped[str] = mapped_column(String(50), default=MediaStatus.PENDING.value)
     media_type: Mapped[str] = mapped_column(String(50), default=MediaType.UNKNOWN.value)
     system_media_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    type_scores: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     detected_title: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     detected_year: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     metadata_source: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
