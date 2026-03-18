@@ -15,6 +15,7 @@
     "name": "Name",
     "actions": "Actions",
     "undo": "Undo",
+    "approve": "Approve / Move",
     "retry": "Retry",
     "info": "Info",
     "fix": "Fix",

@@ -241,6 +241,28 @@ async def undo_download(download_id: int, request: Request, db: AsyncSession = D
         return Response(headers={"HX-Redirect": "/"})
     return RedirectResponse(url="/", status_code=303)
 
+@router.post("/approve/{download_id}")
+async def approve_download(download_id: int, request: Request, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
+    if not user: return RedirectResponse(url="/login", status_code=303)
+    await sys_logger.log(1, "USER", "log_approve_requested", details=f"ID: {download_id}")
+    
+    stmt = select(Download).where(Download.id == download_id)
+    res = await db.execute(stmt)
+    download = res.scalar_one_or_none()
+    
+    if download and os.path.exists(download.original_path):
+        download.status = MediaStatus.PENDING.value
+        await db.commit()
+        background_tasks.add_task(run_approve_task, download_id)
+    
+    if request.headers.get("HX-Request"):
+        return Response(headers={"HX-Redirect": "/"})
+    return RedirectResponse(url="/", status_code=303)
+
+async def run_approve_task(download_id: int):
+    async with AsyncSessionLocal() as db:
+        await processor.execute_transfer(db, download_id)
+
 @router.post("/retry/{download_id}")
 async def retry_download(download_id: int, request: Request, background_tasks: BackgroundTasks, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)):
     if not user: return RedirectResponse(url="/login", status_code=303)

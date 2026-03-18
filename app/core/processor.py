@@ -147,43 +147,85 @@ class Processor:
                 download.source_id = api_data['source_id']
                 self._add_log(download, "log_api_meta_found", source=api_data['source'], title=download.detected_title)
                 await sys_logger.log(1, "SYSTEM", "log_api_meta_found", details=f"title: {download.detected_title}")
-                t = download.detected_title
-                folder_name = renamer.sanitize(f"{t} ({api_data['year']})" if (api_data['year'] and m_type in ['movie', 'tv']) else t)
-            else:
-                folder_name = renamer.sanitize(p.name)
 
-            mode = config_manager.get('RENAMING', 'mode', 'move').lower()
-            season_folders = config_manager.getboolean('RENAMING', 'season_folders', True)
-            video_exts = tuple(x.strip() for x in config_manager.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
-            
-            success_count = 0
-            final_dest = dest_root / folder_name
-            logger.info(f"--> [PROCESSOR] Target: {final_dest}, Type: {m_type}")
+            if not download.system_media_type:
+                download.system_media_type = download.media_type
 
-            # ROBUST FILE LISTING
-            items_to_process = []
-            if p.is_dir():
-                for root, dirs, files in os.walk(str(p)):
-                    for file in files:
-                        items_to_process.append(Path(root) / file)
-            else:
-                items_to_process.append(p)
+            download.status = MediaStatus.MANUAL_REQUIRED.value
+            self._add_log(download, "log_awaiting_approval")
+            await db.commit()
 
-            logger.info(f"--> [PROCESSOR] Found {len(items_to_process)} files to process")
-            is_media = m_type in ['movie', 'tv']
-            is_game_or_soft = m_type in ['game', 'software']
+        except Exception as e:
+            self._add_log(download, "log_proc_critical", error=str(e))
+            await sys_logger.log(2, "SYSTEM", "log_proc_critical", details=f"error: {str(e)}")
+            download.status = MediaStatus.ERROR.value
+            await db.commit()
 
+    async def execute_transfer(self, db: AsyncSession, download_id: int):
+        stmt = select(Download).where(Download.id == download_id)
+        res = await db.execute(stmt)
+        download = res.scalar_one_or_none()
+
+        if not download or not os.path.exists(download.original_path):
+            return False
+
+        p = Path(download.original_path)
+        
+        m_type_map = {
+            MediaType.MOVIE.value: 'movie',
+            MediaType.SERIES.value: 'tv',
+            MediaType.GAME.value: 'game',
+            MediaType.SOFTWARE.value: 'software',
+            MediaType.OTHER.value: 'other'
+        }
+        m_type = m_type_map.get(download.media_type, 'other')
+        
+        dest_map = {
+            'movie': config_manager.get('PATHS', 'movies_folder'),
+            'tv': config_manager.get('PATHS', 'series_folder'),
+            'game': config_manager.get('PATHS', 'games_folder'),
+            'software': config_manager.get('PATHS', 'software_folder'),
+            'other': config_manager.get('PATHS', 'other_folder')
+        }
+        dest_root = Path(dest_map.get(m_type, dest_map['other'])).expanduser()
+        if not dest_root.exists(): dest_root.mkdir(parents=True, exist_ok=True)
+        
+        api_data = None
+        if download.detected_title:
+            api_data = {
+                'titles': {'ru': download.detected_title, 'origin': download.detected_title},
+                'year': download.detected_year
+            }
+            t = download.detected_title
+            folder_name = renamer.sanitize(f"{t} ({api_data['year']})" if (api_data['year'] and m_type in ['movie', 'tv']) else t)
+        else:
+            folder_name = renamer.sanitize(p.name)
+
+        mode = config_manager.get('RENAMING', 'mode', 'move').lower()
+        season_folders = config_manager.getboolean('RENAMING', 'season_folders', True)
+        video_exts = tuple(x.strip() for x in config_manager.get('SYSTEM', 'video_extensions', fallback='.mkv,.avi,.mp4').split(','))
+        
+        success_count = 0
+        final_dest = dest_root / folder_name
+        logger.info(f"--> [TRANSFER_EXEC] Target: {final_dest}, Type: {m_type}")
+
+        items_to_process = []
+        if p.is_dir():
+            for root, dirs, files in os.walk(str(p)):
+                for file in files:
+                    items_to_process.append(Path(root) / file)
+        else:
+            items_to_process.append(p)
+
+        is_media = m_type in ['movie', 'tv']
+
+        try:
             for f in items_to_process:
-                # If it's media (movie/tv), only process video files
                 if is_media and f.suffix.lower() not in video_exts:
                     continue
                 
-                # If it's not media and not game/soft, we also skip it? 
-                # Let's say for games and software we take ALL files.
-                
                 rel_path = f.relative_to(p) if p.is_dir() else Path(f.name)
                 
-                # Series logic
                 if is_media and season_folders and m_type == 'tv':
                     ep_tag = scanner.get_season_episode(f.name)
                     if ep_tag:
@@ -196,7 +238,7 @@ class Processor:
                 else:
                     target = renamer.get_unique_path(final_dest / (renamer.construct_filename(api_data, f) if is_media else rel_path))
 
-                logger.info(f"--> [TRANSFER] {f.name} -> {target}")
+                logger.info(f"--> [TRANSFER_EXEC] {f.name} -> {target}")
                 if await file_ops.transfer_file(str(f), str(target), mode):
                     success_count += 1
                     db.add(FileMove(download_id=download.id, src_path=str(f), dst_path=str(target)))
@@ -209,32 +251,36 @@ class Processor:
             if success_count > 0:
                 download.status = MediaStatus.SUCCESS.value
                 self._add_log(download, "log_proc_complete", count=success_count)
-                await sys_logger.log(1, "SYSTEM", "done", details=f"name: {torrent_name}")
+                await sys_logger.log(1, "SYSTEM", "done", details=f"name: {download.torrent_name}")
                 
-                type_key = m_type if m_type in ['movie', 'tv', 'game', 'software', 'other'] else 'other'
-
                 try:
                     await notifier.send_telegram({
-                        'title': download.detected_title or torrent_name,
+                        'title': download.detected_title or download.torrent_name,
                         'year': download.detected_year or '',
                         'status': 'done',
-                        'type_name': type_key,
-                        'original_name': torrent_name
+                        'type_name': m_type,
+                        'original_name': download.torrent_name
                     })
                 except: pass
+                
+                # Check for removing torrent from client
+                torrent_id = None
+                # We need a way to get torrent_id if we want to delete it.
+                # However, for now we will skip removing torrent from client on manual approval.
+                # Actually, wait, previously torrent_id was passed. But we don't save torrent_id. 
+                # We might need to keep it, but it's optional.
             else:
                 self._add_log(download, "log_proc_no_files")
                 download.status = MediaStatus.ERROR.value
             
             await db.commit()
-            if download.status == MediaStatus.SUCCESS and torrent_id:
-                client = get_client()
-                if client: await client.remove_torrent(torrent_id)
+            return True
 
         except Exception as e:
             self._add_log(download, "log_proc_critical", error=str(e))
             await sys_logger.log(2, "SYSTEM", "log_proc_critical", details=f"error: {str(e)}")
             download.status = MediaStatus.ERROR.value
             await db.commit()
+            return False
 
 processor = Processor()

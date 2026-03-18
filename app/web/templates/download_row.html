@@ -19,8 +19,10 @@
                 <span class="font-semibold text-gray-800">{{ d.detected_title }}</span>
                 {% if d.detected_year %}<span class="text-gray-400 text-sm">({{ d.detected_year }})</span>{% endif %}
             </div>
-            <div class="text-xs text-blue-500 font-medium">
-                {{ _(d.media_type.lower()) if d.media_type else "" }}
+            <div class="text-xs mt-1">
+                <span class="text-gray-500 mr-1">{{ _("SYSTEM") }}:</span><span class="text-blue-500 font-medium">{{ _(d.system_media_type.lower()) if d.system_media_type else _("unknown") }}</span>
+                <span class="text-gray-400 mx-1">|</span>
+                <span class="text-gray-500 mr-1">{{ _("USER") }}:</span><span class="{% if d.system_media_type != d.media_type %}text-amber-600{% else %}text-blue-500{% endif %} font-medium">{{ _(d.media_type.lower()) if d.media_type else _("unknown") }}</span>
             </div>
         {% elif d.media_type and d.media_type != 'UNKNOWN' %}
             <div class="flex items-center gap-2">
@@ -29,8 +31,10 @@
                 </span>
                 <span class="text-xs text-slate-500 italic">{{ _("meta_not_found_fallback") }}</span>
             </div>
-            <div class="text-xs text-blue-500 font-bold mt-1">
-                {{ _(d.media_type.lower()) }}
+            <div class="text-xs mt-1">
+                <span class="text-gray-500 mr-1">{{ _("SYSTEM") }}:</span><span class="text-blue-500 font-bold">{{ _(d.system_media_type.lower()) if d.system_media_type else _("unknown") }}</span>
+                <span class="text-gray-400 mx-1">|</span>
+                <span class="text-gray-500 mr-1">{{ _("USER") }}:</span><span class="{% if d.system_media_type != d.media_type %}text-amber-600{% else %}text-blue-500{% endif %} font-bold">{{ _(d.media_type.lower()) if d.media_type else _("unknown") }}</span>
             </div>
         {% else %}
             <span class="text-gray-400 italic text-sm">{{ _("not_resolved") }}</span>
@@ -83,6 +87,13 @@
                         class="p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition cursor-pointer" 
                         title="{{ _("undo") }}">
                     <span class="text-xl pointer-events-none">↩️</span>
+                </button>
+                {% elif d.status == 'MANUAL_REQUIRED' %}
+                <button hx-post="/approve/{{ d.id }}" 
+                        hx-target="body" 
+                        class="p-2.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-xl transition cursor-pointer" 
+                        title="{{ _("approve") }}">
+                    <span class="text-xl pointer-events-none">✅</span>
                 </button>
                 {% endif %}
             </div>
