@@ -65,15 +65,15 @@ finally:
     if 'conn' in locals():
         conn.close()
 EOF
-else:
+else
     echo -e "${YELLOW}Файл базы данных не найден по пути $DB_PATH. Будет создана новая БД при запуске.${NC}"
 fi
 
 # 4. Перезапуск сервиса (если используется systemd)
 # Проверяем, запущен ли сервис через systemd
-if systemctl is-active --quiet torrent-sorter.service 2>/dev/null; then
-    echo -e "${YELLOW}Перезапуск сервиса torrent-sorter...${NC}"
-    sudo systemctl restart torrent-sorter.service
+if systemctl is-active --quiet torrent-media-sorter-web.service 2>/dev/null; then
+    echo -e "${YELLOW}Перезапуск сервиса torrent-media-sorter-web...${NC}"
+    sudo systemctl restart torrent-media-sorter-web.service
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Сервис успешно перезапущен.${NC}"
     else
@@ -88,7 +88,7 @@ else
         docker-compose up -d
         echo -e "${GREEN}Docker контейнеры обновлены и запущены.${NC}"
     else
-        echo -e "${YELLOW}Служба torrent-sorter.service не найдена и Docker не используется.${NC}"
+        echo -e "${YELLOW}Служба torrent-media-sorter-web.service не найдена и Docker не используется.${NC}"
         echo -e "${YELLOW}Пожалуйста, перезапустите приложение вручную.${NC}"
     fi
 fi
