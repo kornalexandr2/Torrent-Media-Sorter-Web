@@ -98,8 +98,8 @@ class Processor:
                 self._add_log(download, "log_api_search")
                 await sys_logger.log(3, "SYSTEM", "log_api_search", details=f"query: {q_name}")
                 
-                if m_type_raw == 'software':
-                    # STRICT MODE: If scanner found software indicators (exe, dll), we ONLY use IGDB.
+                if m_type_raw in ['software', 'game']:
+                    # STRICT MODE: If scanner found software/game indicators (exe, dll), we ONLY use IGDB.
                     self._add_log(download, "log_api_search_igdb_only")
                     api_data = await metadata_manager.resolve(q_name, priority_list=['igdb'])
                 elif m_type_raw == 'unknown':
