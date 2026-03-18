@@ -76,7 +76,7 @@ fi
 # Проверяем, запущен ли сервис через systemd
 if systemctl is-active --quiet torrent-media-sorter-web.service 2>/dev/null; then
     echo -e "${YELLOW}Перезапуск сервиса torrent-media-sorter-web...${NC}"
-    sudo systemctl restart torrent-media-sorter-web.service
+    systemctl restart torrent-media-sorter-web.service
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}Сервис успешно перезапущен.${NC}"
     else
