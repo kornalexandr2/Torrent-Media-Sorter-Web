@@ -48,7 +48,7 @@ class Scanner:
         n = re.sub(r'\s(19|20)\d{2}\b.*', '', n)
         
         # 3. Specific cleaning for GOG/Steam suffixes often found in games
-        n = re.sub(r'(?i)\b(win|gog|steam|repack|setup|build|version|update|dlc|gold|deluxe|complete|crack)\b.*', '', n)
+        n = re.sub(r'(?i)\b(win|gog|steam|repack|setup|build|version|update|dlc|gold|deluxe|complete|crack|installer)\b.*', '', n)
         
         # 4. Standard quality tags
         quality_tags = r's\d+|season\s*\d+|сезон\s*\d+|720p|1080p|4k|2160p|480p|576p|bluray|web-dl|web-rip|webrip|hdtv|rip|remux|mhdr|hdr|uhd|hevc|h264|x264|h265|x265|aac|dts|ac3|multi|dub|sub'
